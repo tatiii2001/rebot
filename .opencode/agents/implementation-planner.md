@@ -1,6 +1,6 @@
 ---
 description: Use to create read-only implementation plans for small, agreed ReBot vertical slices.
-mode: subagent
+mode: primary
 temperature: 0.1
 steps: 16
 permission:

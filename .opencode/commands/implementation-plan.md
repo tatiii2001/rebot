@@ -1,7 +1,7 @@
 ---
 description: Propose a read-only implementation plan for one small, agreed ReBot change.
 agent: implementation-planner
-subtask: true
+subtask: false
 ---
 
 Prepare an implementation plan for this requested behavior or technical change:
@@ -26,4 +26,4 @@ Return the proposal in this order:
 10. **Completion criteria**
 11. **Final readiness verdict**: exactly `ready for TDD`, `ready after clarification`, or `blocked`
 
-The result is a proposal requiring human review. Remain completely read-only: do not create or edit files, execute implementation, install dependencies, stage changes, commit, push, or modify Git history.
+The result is a proposal requiring human review. Remain completely read-only: do not create or edit files, execute implementation, install dependencies, stage changes, commit, push, or modify Git history. End the command immediately after returning the readiness verdict. Do not hand the plan back to another agent for continuation and do not begin implementation in the current session.
