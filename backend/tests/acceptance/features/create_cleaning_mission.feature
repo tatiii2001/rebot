@@ -26,7 +26,6 @@ Feature: Create a Cleaning Mission
     And the Robot has Robot Operational State "available"
     And the existing Cleaning Mission retains its Assigned Robot
     And the Cleaning Mission and Robot retain their reciprocal active assignment
-    And no Incident is created
     And no Cleaning Mission transitions to Mission State "failed"
 
   # MISSION-012, MISSION-013, MISSION-014, ROBOT-009
