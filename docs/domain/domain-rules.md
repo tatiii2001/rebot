@@ -18,18 +18,27 @@ Stable identifiers are assigned only to atomic confirmed domain invariants and c
 | ID | Status | Rule |
 | --- | --- | --- |
 | `MISSION-001` | Confirmed invariant | A new Cleaning Mission has Mission State `pending`. |
-| `MISSION-002` | Confirmed invariant | A Cleaning Mission can start only when its Mission State is `pending` and its assigned Robot has Robot Operational State `available`. |
-| `MISSION-003` | Confirmed behavior | A successful start atomically changes the Cleaning Mission from `pending` to `running` and its assigned Robot from `available` to `executing mission`. |
+| `MISSION-002` | Confirmed invariant | A Cleaning Mission can start only when its Mission State is `pending`, its assigned Robot has Robot Operational State `available`, and the Cleaning Mission's Assigned Robot identity and the Robot's Current Active Mission identity are reciprocal. |
+| `MISSION-003` | Confirmed behavior | After all start preconditions and reciprocal identities are validated before either entity is changed, a successful start uses one coordinated mutable domain operation to atomically change the Cleaning Mission from `pending` to `running` and its assigned Robot from `available` to `executing mission`; both identities remain unchanged. |
 | `MISSION-004` | Confirmed invariant | A Robot cannot have more than one Active Mission. |
 | `MISSION-005` | Confirmed invariant | The Active Mission states are exactly `pending`, `running`, and `paused`. |
 | `MISSION-006` | Confirmed invariant | The Terminal Mission states are exactly `completed`, `cancelled`, and `failed`. |
 | `MISSION-007` | Confirmed invariant | A Terminal Mission cannot be modified. |
-| `MISSION-008` | Confirmed behavior | When every Processable Waste Item for the current Cleaning Mission has either been deposited at a Compatible Collection Point or been marked `unreachable` with its corresponding Required Incident reported, and every Required Incident has been reported, successful completion atomically changes a running Cleaning Mission to `completed` and its assigned Robot from `executing mission` to `available`; a running Cleaning Mission cannot become `completed` otherwise. |
+| `MISSION-008` | Confirmed behavior | When every Processable Waste Item for the current Cleaning Mission has either been deposited at a Compatible Collection Point or been marked `unreachable` with its corresponding Required Incident reported, and every Required Incident has been reported, successful completion atomically changes a running Cleaning Mission to `completed`, changes its assigned Robot from `executing mission` to `available`, and clears that Robot's Current Active Mission identity. The terminal Cleaning Mission retains its Assigned Robot identity. A running Cleaning Mission cannot become `completed` otherwise. |
 | `MISSION-009` | Confirmed behavior | When any start precondition in `MISSION-002` is unsatisfied, all start preconditions are evaluated before any state mutation and the start produces one neutral Mission Start Rejection. Neither state transition in `MISSION-003` occurs: the Cleaning Mission retains its previous Mission State and the assigned Robot retains its previous Robot Operational State. A Mission Start Rejection does not identify a specific reason, is not an Incident, and does not change the Mission State to `failed`. |
+| `MISSION-010` | Confirmed invariant | A Cleaning Mission has one stable, opaque Cleaning Mission Identity that does not change during its state transitions. |
+| `MISSION-011` | Confirmed invariant | Every Cleaning Mission has exactly one Assigned Robot identity from creation; an unassigned Cleaning Mission is not permitted in the MVP. |
+| `MISSION-012` | Confirmed invariant | While a Cleaning Mission is active, its Assigned Robot identity and that Robot's Current Active Mission identity are reciprocal. |
+| `MISSION-013` | Confirmed invariant | An Active Mission cannot be reassigned to another Robot. |
+| `MISSION-014` | Confirmed behavior | When creating or assigning a Cleaning Mission would violate an assignment rule, the attempt produces one neutral Mission Assignment Rejection. Existing Cleaning Mission and Robot state and assignment information remain unchanged. A Mission Assignment Rejection does not identify a specific reason, creates no Incident, does not change a Cleaning Mission's Mission State to `failed`, and is distinct from a Mission Start Rejection. |
+| `MISSION-015` | Confirmed invariant | A Robot cannot record a Terminal Mission as its Current Active Mission. |
+| `MISSION-016` | Confirmed behavior | As part of any transition that makes a Cleaning Mission terminal, its assigned Robot's Current Active Mission identity is cleared while the terminal Cleaning Mission retains its Assigned Robot identity. |
 
 The conditions and transition policy for Mission State `failed` remain deferred.
 
-Because `MISSION-003` spans a Cleaning Mission and its assigned Robot, a focused local domain operation may coordinate that successful transition. This coordination does not declare an aggregate root, establish aggregate ownership, state that the Cleaning Mission owns the Robot lifecycle, or authorize application-layer business rules.
+`MISSION-004` is enforced when a Cleaning Mission is created: `MISSION-001` makes the new Cleaning Mission `pending`, `MISSION-011` requires one Assigned Robot, `MISSION-012` requires reciprocal assignment while that Cleaning Mission is active, and `ROBOT-009` prevents the Robot from recording another Current Active Mission. Successful creation must leave the participating entities in that consistent state; a partially assigned Active Mission is invalid. No repository, registry, or global scan of Cleaning Missions is required to evaluate this local invariant.
+
+Because `MISSION-003` spans a Cleaning Mission and its assigned Robot, its coordinated mutable domain operation is the normal public domain operation for start. Independent transitions that could expose a half-started state are not public domain operations. This encapsulation is an API and architecture boundary, not a security mechanism against deliberate language reflection or direct private-member access. The coordination does not declare an aggregate root, establish aggregate ownership, state that the Cleaning Mission owns the Robot lifecycle, or authorize application-layer business rules.
 
 ## Robot Rules
 
@@ -42,6 +51,8 @@ Because `MISSION-003` spans a Cleaning Mission and its assigned Robot, a focused
 | `ROBOT-005` | Confirmed invariant | A Robot in Robot Operational State `paused` cannot deposit a Waste Item. |
 | `ROBOT-006` | Confirmed invariant | A Robot in Robot Operational State `out of service` cannot start a Cleaning Mission. |
 | `ROBOT-007` | Confirmed invariant | A Robot in Robot Operational State `out of service` cannot execute a Cleaning Mission. |
+| `ROBOT-008` | Confirmed invariant | A Robot has one stable, opaque Robot Identity that does not change during its operational-state transitions. |
+| `ROBOT-009` | Confirmed invariant | A Robot records at most one Current Active Mission identity. A Robot already associated with an Active Mission cannot be assigned another Active Mission. |
 
 Transitions into or out of `charging` and behavior while charging are deferred decisions.
 
@@ -109,7 +120,7 @@ These rules are confirmed policy commitments, but concrete example values cannot
 | `CONTROL-002` | Confirmed behavior | Pausing a Cleaning Mission whose Mission State is `running` changes the Robot Operational State to `paused`. |
 | `CONTROL-003` | Confirmed behavior | Resuming a Cleaning Mission whose Mission State is `paused` changes its Mission State to `running`. |
 | `CONTROL-004` | Confirmed behavior | Resuming a Cleaning Mission whose Mission State is `paused` changes the Robot Operational State to `executing mission`. |
-| `CONTROL-005` | Confirmed behavior | Cancelling a non-terminal Cleaning Mission changes its Mission State to `cancelled`. |
+| `CONTROL-005` | Confirmed behavior | Cancelling a non-terminal Cleaning Mission atomically changes its Mission State to `cancelled` and clears its assigned Robot's Current Active Mission identity. The cancelled Cleaning Mission retains its Assigned Robot identity. This rule does not determine the Robot Operational State after cancellation. |
 | `CONTROL-006` | Confirmed behavior | Cancelling a non-terminal Cleaning Mission stops further mission execution. |
 
 Handling of Collected Waste after cancellation and the Robot Operational State after cancellation are deferred decisions.
@@ -153,7 +164,7 @@ The demonstrable MVP completion scenario uses Known Waste Categories. This is a 
 
 ## Application Coordination Versus Domain Behavior
 
-Domain objects enforce domain invariants and state changes. Application use cases coordinate participating domain behavior and the delivery of observable information. Infrastructure performs technical interaction and persistence. This distinction does not assign concrete aggregates, entities, value objects, bounded contexts, classes, frameworks, protocols, modules, or file paths.
+Robot and Cleaning Mission are identity-bearing domain entities. Domain objects enforce domain invariants and state changes. Application use cases coordinate participating domain behavior and the delivery of observable information. Infrastructure performs technical interaction and persistence. The focused domain coordination required for assignment and paired state transitions does not establish aggregate ownership or declare an aggregate boundary. This distinction does not assign value objects, bounded contexts, concrete classes, frameworks, protocols, modules, or file paths.
 
 ## Intentionally Deferred Domain Decisions
 
@@ -172,6 +183,7 @@ Domain objects enforce domain invariants and state changes. Application use case
 - Handling of Collected Waste after cancellation.
 - Robot Operational State after cancellation.
 - Conditions and exact transition policy for Mission State `failed`.
+- Robot Operational State, carried-Waste behavior, and other lifecycle effects of terminal transitions beyond the confirmed association clearing rule in `MISSION-016`.
 - Future reconsideration policy for Unreachable Waste.
 - Completion effects of future Incident types that are not Required Incidents under current rules.
 - Whether Incidents need lifecycle states.

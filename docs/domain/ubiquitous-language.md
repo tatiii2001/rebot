@@ -28,6 +28,14 @@ The MVP web-based product interface through which the Operator controls Cleaning
 
 The coordinated simulated effort in which one Robot classifies, routes to, collects, and deposits Waste Items that can proceed under agreed handling rules, while reporting progress and incidents.
 
+### Cleaning Mission Identity
+
+The stable, opaque identity of one Cleaning Mission. It remains the same throughout that Cleaning Mission's state transitions. Its representation and generation strategy are not domain-language concerns.
+
+### Assigned Robot
+
+The one Robot designated when a Cleaning Mission is created to participate in that Cleaning Mission. The Cleaning Mission records the Robot Identity of its Assigned Robot. An Active Mission cannot be reassigned, and a Terminal Mission cannot be modified.
+
 ### Mission State
 
 The current stage of a Cleaning Mission: `pending`, `running`, `paused`, `completed`, `cancelled`, or `failed`.
@@ -44,6 +52,10 @@ A Cleaning Mission whose Mission State is `completed`, `cancelled`, or `failed`.
 
 The neutral domain outcome when a confirmed start precondition is unsatisfied. A Mission Start Rejection leaves the Cleaning Mission's Mission State and its assigned Robot's Robot Operational State unchanged, does not identify a specific reason, and is neither an Incident nor a Mission State.
 
+### Mission Assignment Rejection
+
+The neutral domain outcome when creating or assigning a Cleaning Mission would violate a confirmed assignment rule. A Mission Assignment Rejection leaves existing Cleaning Mission and Robot state and assignment information unchanged, does not identify a specific reason, creates no Incident, and does not change a Cleaning Mission's Mission State to `failed`. It is distinct from a Mission Start Rejection.
+
 ### Mission Progress
 
 Observable information about the advancement of a Cleaning Mission. It may reflect handled Waste Items and Incidents required by confirmed rules. Its exact calculation and presentation remain unresolved.
@@ -53,6 +65,14 @@ Observable information about the advancement of a Cleaning Mission. It may refle
 The final observable outcome of a Cleaning Mission, including its terminal state and the resulting waste-handling outcomes and incident information. For a `completed` Mission, each Processable Waste Item for the current Mission has either been deposited at a Compatible Collection Point or marked `unreachable` with its corresponding Required Incident reported, and every Required Incident has been reported. Deposited and unreachable are distinct outcomes; an unreachable Waste Item remains Processable Waste and is not collected or deposited during the current Mission. Whether it is reconsidered in a future Mission is unspecified.
 
 ## Robot Concepts
+
+### Robot Identity
+
+The stable, opaque identity of one Robot. It remains the same throughout that Robot's operational-state transitions. Its representation and generation strategy are not domain-language concerns.
+
+### Current Active Mission
+
+The optional Cleaning Mission Identity recorded by a Robot for the one Active Mission with which it is currently associated. While that Cleaning Mission is active, its Assigned Robot identity and the Robot's Current Active Mission identity are reciprocal. A Robot records no Current Active Mission after the associated Cleaning Mission becomes terminal.
 
 ### Battery Level
 
