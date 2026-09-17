@@ -25,8 +25,11 @@ Stable identifiers are assigned only to atomic confirmed domain invariants and c
 | `MISSION-006` | Confirmed invariant | The Terminal Mission states are exactly `completed`, `cancelled`, and `failed`. |
 | `MISSION-007` | Confirmed invariant | A Terminal Mission cannot be modified. |
 | `MISSION-008` | Confirmed behavior | When every Processable Waste Item for the current Cleaning Mission has either been deposited at a Compatible Collection Point or been marked `unreachable` with its corresponding Required Incident reported, and every Required Incident has been reported, successful completion atomically changes a running Cleaning Mission to `completed` and its assigned Robot from `executing mission` to `available`; a running Cleaning Mission cannot become `completed` otherwise. |
+| `MISSION-009` | Confirmed behavior | When any start precondition in `MISSION-002` is unsatisfied, all start preconditions are evaluated before any state mutation and the start produces one neutral Mission Start Rejection. Neither state transition in `MISSION-003` occurs: the Cleaning Mission retains its previous Mission State and the assigned Robot retains its previous Robot Operational State. A Mission Start Rejection does not identify a specific reason, is not an Incident, and does not change the Mission State to `failed`. |
 
 The conditions and transition policy for Mission State `failed` remain deferred.
+
+Because `MISSION-003` spans a Cleaning Mission and its assigned Robot, a focused local domain operation may coordinate that successful transition. This coordination does not declare an aggregate root, establish aggregate ownership, state that the Cleaning Mission owns the Robot lifecycle, or authorize application-layer business rules.
 
 ## Robot Rules
 

@@ -40,6 +40,10 @@ A Cleaning Mission whose Mission State is `pending`, `running`, or `paused`.
 
 A Cleaning Mission whose Mission State is `completed`, `cancelled`, or `failed`. A Terminal Mission cannot be modified.
 
+### Mission Start Rejection
+
+The neutral domain outcome when a confirmed start precondition is unsatisfied. A Mission Start Rejection leaves the Cleaning Mission's Mission State and its assigned Robot's Robot Operational State unchanged, does not identify a specific reason, and is neither an Incident nor a Mission State.
+
 ### Mission Progress
 
 Observable information about the advancement of a Cleaning Mission. It may reflect handled Waste Items and Incidents required by confirmed rules. Its exact calculation and presentation remain unresolved.
