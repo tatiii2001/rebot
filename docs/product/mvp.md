@@ -2,7 +2,7 @@
 
 ## MVP Objective
 
-The MVP must demonstrate one complete cleaning mission in a two-dimensional grid-based simulation and a web control center for the operator. The operator starts and observes the mission as one robot classifies, routes to, collects, and deposits processable waste while avoiding static obstacles, consuming battery, and reporting relevant incidents and real-time telemetry.
+The MVP must demonstrate one complete cleaning mission in a two-dimensional grid-based simulation and a web control center for the operator. The operator starts and observes the mission as one robot classifies, routes to, collects, and deposits reachable Processable Waste or marks Processable Waste `unreachable` while avoiding static obstacles, consuming battery, and reporting relevant incidents and real-time telemetry.
 
 ## Primary Actor
 
@@ -19,16 +19,16 @@ The primary actor is the **Operator**, who starts, pauses, resumes, or cancels a
 2. An available robot begins the mission.
 3. The robot selects a detected waste item as a classification candidate.
 4. The waste is classified deterministically as plastic, paper, metal, glass, organic, or `unknown`.
-5. The system determines whether the item can proceed under the currently agreed handling rules.
-6. Only an item that can proceed is targeted for collection.
-7. A valid route to the targeted item is calculated while avoiding static obstacles.
-8. The robot moves to the waste and consumes battery.
-9. The robot collects the waste.
-10. It calculates a route to a compatible collection point.
-11. The robot transports the waste and deposits it at the collection point.
-12. It continues with remaining waste that can proceed under the agreed handling rules.
-13. Waste that is unreachable is reported as an incident without automatically crashing the mission.
-14. The mission completion condition is evaluated after waste that can proceed has been deposited and required incidents have been reported, according to the agreed handling rules.
+5. The system determines whether the item is Processable Waste under the currently agreed handling rules.
+6. The system determines whether a valid route to the Processable Waste Item exists while avoiding static obstacles.
+7. If a Route exists, the Processable Waste Item becomes targeted for collection.
+8. If no Route exists, the Processable Waste Item becomes `unreachable` and its corresponding Required Incident is reported; it does not become targeted during the current Mission.
+9. For a targeted item, the robot moves to the waste and consumes battery.
+10. The robot collects the waste.
+11. It calculates a route to a compatible collection point.
+12. The robot transports the waste and deposits it at the collection point.
+13. It continues with remaining Processable Waste Items, resolving each as deposited or unreachable.
+14. When every Processable Waste Item for the current Mission is deposited or unreachable with its corresponding Required Incident reported, and every Required Incident has been reported, the Mission becomes `completed`.
 
 ## Functional Scope
 
@@ -36,7 +36,7 @@ The primary actor is the **Operator**, who starts, pauses, resumes, or cancels a
 - One two-dimensional grid-based environment.
 - Static obstacles.
 - Multiple waste items.
-- Deterministic classification into the known categories plastic, paper, metal, glass, and organic, with `unknown` as an allowed classification outcome.
+- Deterministic classification into the MVP Processable Waste Categories plastic, paper, metal, glass, and organic, with `unknown` as an allowed classification outcome that is currently non-processable.
 - Compatible collection points.
 - Route calculation that avoids blocked positions.
 - Movement and battery consumption.
@@ -57,9 +57,9 @@ Waste progresses through these lifecycle states as applicable:
 
 `detected` -> `classified` -> `targeted` -> `collected` -> `deposited`
 
-Waste that cannot be reached is marked `unreachable` and generates an incident. Deposited or unreachable waste is not processed again.
+Waste that cannot be reached is marked `unreachable` and generates a Required Incident. It remains Processable Waste and is not targeted, collected, or deposited during the current Mission. Whether it is reconsidered in a future Mission remains unspecified.
 
-The known waste categories are plastic, paper, metal, glass, and organic. `unknown` remains an allowed deterministic classification outcome. Normal collection and deposit behavior applies only when a compatible collection point exists under an agreed handling policy. This MVP does not define the handling policy for `unknown` waste.
+The MVP Processable Waste Categories are plastic, paper, metal, glass, and organic. `unknown` remains an allowed deterministic classification outcome but is currently non-processable under the MVP policy. Normal collection and deposit behavior applies only when a compatible collection point exists under an agreed handling policy. Future Unknown Waste handling remains deferred.
 
 ## Robot Operational States
 
@@ -74,7 +74,7 @@ The known waste categories are plastic, paper, metal, glass, and organic. `unkno
 - `pending`: created but not running.
 - `running`: actively executing.
 - `paused`: temporarily suspended by the operator.
-- `completed`: the agreed processable waste has been deposited and required incidents have been reported according to the agreed handling rules.
+- `completed`: every Processable Waste Item for the current Mission has either been deposited at a Compatible Collection Point or marked `unreachable` with its corresponding Required Incident reported, and every Required Incident has been reported.
 - `cancelled`: stopped by the operator before completion.
 - `failed`: unable to continue because of an unrecoverable mission condition.
 
@@ -105,7 +105,7 @@ The MVP web control center displays the simulated environment and lets the opera
 - The robot can complete collection and compatible deposit for reachable waste while avoiding static obstacles.
 - Movement visibly affects the robot's battery state.
 - The operator can pause, resume, and cancel missions within the stated mission-state rules.
-- Unreachable waste is reported as an incident and does not automatically prevent remaining reachable work from continuing.
+- Each Processable Waste Item finishes the current Mission as either deposited at a Compatible Collection Point or `unreachable`; every unreachable item has its corresponding Required Incident reported, after which the Mission can become `completed`.
 - Insufficient battery is reported as an incident rather than being silently ignored.
 - The operator can observe the simulated environment, position, battery, operational state, mission state, mission progress, waste lifecycle, incidents, and final result through the MVP web control center and its telemetry.
 
@@ -143,4 +143,4 @@ No deferred decision is assigned a value by this MVP definition.
 
 ## MVP Completion Definition
 
-The MVP is complete when one demonstrable end-to-end scenario using known waste categories can be run from mission start through completion in the web control center: the robot handles reachable waste, deposits it at compatible collection points, reports position, battery, state, progress, and final result through real-time telemetry, and handles at least one unreachable-waste incident without automatically crashing the mission. The scenario must also demonstrate the applicable mission controls and battery consumption without relying on physical hardware, unresolved `unknown`-waste handling, or other future capabilities.
+The MVP is complete when one demonstrable end-to-end scenario using known waste categories can be run from mission start through completion in the web control center: each Processable Waste Item finishes the current Mission as either deposited at a Compatible Collection Point or `unreachable`, every unreachable item has its corresponding Required Incident reported, and the Mission becomes `completed` with the assigned Robot becoming `available`. The robot reports position, battery, state, progress, and final result through real-time telemetry, and the scenario demonstrates at least one unreachable-waste incident without automatically crashing the mission. It does not rely on physical hardware, future Unknown Waste handling, or other future capabilities.
