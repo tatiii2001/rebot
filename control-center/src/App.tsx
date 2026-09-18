@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   createLocalControlCenter,
   type ControlCenter,
@@ -27,10 +27,10 @@ const wasteItems: readonly GridMarker[] = [
 ];
 
 const robot: GridMarker = {
-  label: "Robot at grid position 5, 6",
   className: "robot",
-  column: 5,
-  row: 6,
+  label: "Robot",
+  column: 0,
+  row: 0,
 };
 
 const collectionPoint: GridMarker = {
@@ -58,9 +58,28 @@ function StatusValue({ value }: { readonly value: string }) {
 function ControlCenterScreen({ controlCenter }: { readonly controlCenter: ControlCenter }) {
   const [snapshot, setSnapshot] = useState(() => controlCenter.getSnapshot());
   const isRunning = snapshot.missionState === "running";
+  const isRouteAvailable = snapshot.routePreviewState === "ready";
+  const isRouteComplete = snapshot.routePreviewState === "complete";
+
+  useEffect(() => {
+    if (snapshot.routePreviewState !== "playing") {
+      return;
+    }
+
+    const playback = window.setInterval(() => {
+      setSnapshot(controlCenter.advanceRoutePreview());
+    }, 550);
+
+    return () => window.clearInterval(playback);
+  }, [controlCenter, snapshot.routePreviewState]);
 
   function startMission() {
     setSnapshot(controlCenter.startMission());
+  }
+
+  function playRoutePreview() {
+    const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    setSnapshot(controlCenter.playRoutePreview(prefersReducedMotion));
   }
 
   return (
@@ -84,13 +103,28 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
               <p className="eyebrow">Simulated Environment</p>
               <h2 id="environment-heading">Collection sector A-04</h2>
             </div>
-            <span className="grid-status">Grid online</span>
+            <div className="environment-signals">
+              {snapshot.routePreviewState !== "unavailable" && <span className="route-label">Predefined local route</span>}
+              <span className="grid-status">Grid online</span>
+            </div>
           </div>
           <div aria-label="Environment grid with one Robot, four Waste Items, five Static Obstacles, and one Compatible Collection Point" className="environment-grid">
+            {snapshot.routeFrames.map((position, index) => {
+              const progress = index < snapshot.routeFrameIndex
+                ? "completed"
+                : index === snapshot.routeFrameIndex ? "current" : "remaining";
+              return <span aria-hidden="true" className={`route-frame route-${progress}`} key={`${position.column}-${position.row}`} style={{ gridColumn: position.column, gridRow: position.row }} />;
+            })}
             {obstacles.map((marker, index) => <GridMarker key={`obstacle-${index}`} marker={marker} />)}
-            {wasteItems.map((marker) => <GridMarker key={marker.label} marker={marker} />)}
+            {wasteItems.map((marker) => {
+              const isSelectedTarget = marker.column === snapshot.selectedTarget?.position.column && marker.row === snapshot.selectedTarget.position.row;
+              const targetMarker = isSelectedTarget
+                ? { ...marker, className: `${marker.className} targeted-waste`, label: `Selected target: ${marker.label} at grid position ${marker.column}, ${marker.row}` }
+                : marker;
+              return <GridMarker key={marker.label} marker={targetMarker} />;
+            })}
             <GridMarker marker={collectionPoint} />
-            <GridMarker marker={robot} />
+            <GridMarker marker={{ ...robot, column: snapshot.robotPosition.column, row: snapshot.robotPosition.row, label: `Robot at grid position ${snapshot.robotPosition.column}, ${snapshot.robotPosition.row}` }} />
           </div>
           <div aria-label="Environment legend" className="environment-legend">
             <span><i className="legend-icon robot-icon" aria-hidden="true" />Robot</span>
@@ -117,6 +151,9 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
             <button className="start-button" disabled={isRunning} onClick={startMission} type="button">
               {isRunning ? "Mission running" : "Start Mission"}
             </button>
+            <button className="route-preview-button" disabled={!isRouteAvailable} onClick={playRoutePreview} type="button">
+              {isRouteComplete ? "Route preview complete" : "Play route preview"}
+            </button>
           </section>
 
           <section aria-labelledby="robot-heading" className="panel robot-panel">
@@ -135,7 +172,7 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
             <div aria-label={`Battery Level ${snapshot.batteryLevel}%`} aria-valuemax={100} aria-valuemin={0} aria-valuenow={snapshot.batteryLevel} className="battery-meter" role="meter">
               <span style={{ width: `${snapshot.batteryLevel}%` }} />
             </div>
-            <p className="current-task"><span>Current task</span>{snapshot.currentTask}</p>
+            <p aria-live="polite" className="current-task"><span>Current task</span>{snapshot.currentTask}</p>
           </section>
         </aside>
       </section>
