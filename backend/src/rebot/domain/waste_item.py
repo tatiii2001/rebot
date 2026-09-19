@@ -1,6 +1,9 @@
 from enum import StrEnum
 from typing import cast
 
+from rebot.domain.position import Position
+from rebot.domain.validate_supplied_route import Route
+
 
 class WasteCategory(StrEnum):
     PLASTIC = "plastic"
@@ -14,12 +17,21 @@ class WasteCategory(StrEnum):
 class WasteLifecycleState(StrEnum):
     DETECTED = "detected"
     CLASSIFIED = "classified"
+    TARGETED = "targeted"
 
 
 class WasteItem:
-    def __init__(self) -> None:
+    def __init__(self, position: Position) -> None:
+        if not isinstance(cast(object, position), Position):
+            raise TypeError("Waste Item Position must be a Position")
+
+        self._position = position
         self._category: WasteCategory | None = None
         self._lifecycle_state = WasteLifecycleState.DETECTED
+
+    @property
+    def position(self) -> Position:
+        return self._position
 
     @property
     def category(self) -> WasteCategory | None:
@@ -49,3 +61,15 @@ class WasteItem:
             WasteCategory.GLASS,
             WasteCategory.ORGANIC,
         }
+
+    def target(self, route: Route) -> None:
+        if type(route) is not Route:
+            raise TypeError("Targeting Route must be a Route")
+        if self._lifecycle_state is not WasteLifecycleState.CLASSIFIED:
+            raise RuntimeError("Waste Item must be classified to target")
+        if not self.is_processable():
+            raise RuntimeError("Waste Item must be Processable Waste to target")
+        if route.positions[-1] != self._position:
+            raise ValueError("Targeting Route destination must match Waste Item Position")
+
+        self._lifecycle_state = WasteLifecycleState.TARGETED

@@ -2,6 +2,7 @@ import pytest
 from pytest_bdd import given, parsers, scenario, then, when
 
 from rebot.application.classify_waste_item import classify_waste_item
+from rebot.domain.position import Position
 from rebot.domain.waste_item import WasteCategory, WasteItem, WasteLifecycleState
 
 
@@ -34,7 +35,7 @@ def test_classify_a_waste_item_as_unknown() -> None:
 
 @given("a detected Waste Item has been selected as the Classification Candidate")
 def detected_classification_candidate(classification_context: ClassificationContext) -> None:
-    classification_context.waste_item = WasteItem()
+    classification_context.waste_item = WasteItem(Position(0, 0))
     assert classification_context.waste_item.lifecycle_state is WasteLifecycleState.DETECTED
     assert classification_context.waste_item.category is None
 

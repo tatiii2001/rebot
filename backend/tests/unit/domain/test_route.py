@@ -4,7 +4,7 @@ import pytest
 
 from rebot.domain.position import Position
 from rebot.domain.simulated_environment import SimulatedEnvironment
-from rebot.domain.validate_supplied_route import validate_supplied_route
+from rebot.domain.validate_supplied_route import Route, validate_supplied_route
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def simulated_environment() -> SimulatedEnvironment:
     )
 
 
-def test_validates_a_supplied_route_and_preserves_its_position_order(
+def test_constructs_a_valid_route_and_preserves_its_position_order(
     simulated_environment: SimulatedEnvironment,
 ) -> None:
     supplied_positions = (
@@ -27,14 +27,13 @@ def test_validates_a_supplied_route_and_preserves_its_position_order(
         Position(2, 2),
     )
 
-    route = validate_supplied_route(
+    route = Route(
         simulated_environment,
         origin=Position(0, 0),
         destination=Position(2, 2),
         supplied_positions=supplied_positions,
     )
 
-    assert route is not None
     assert route.positions == supplied_positions
     assert isinstance(route.positions, tuple)
 
@@ -66,50 +65,50 @@ def test_rejects_a_static_obstacle_position_outside_inclusive_bounds() -> None:
         )
 
 
-@pytest.mark.parametrize(
-    ("supplied_positions", "origin", "destination"),
-    [
-        ((), Position(0, 0), Position(2, 2)),
+INVALID_ROUTE_CANDIDATES = (
+    ((), Position(0, 0), Position(2, 2)),
+    (
+        (Position(1, 0), Position(2, 0), Position(2, 1), Position(2, 2)),
+        Position(0, 0),
+        Position(2, 2),
+    ),
+    (
+        (Position(0, 0), Position(1, 0), Position(2, 0), Position(2, 1)),
+        Position(0, 0),
+        Position(2, 2),
+    ),
+    (
         (
-            (Position(1, 0), Position(2, 0), Position(2, 1), Position(2, 2)),
             Position(0, 0),
+            Position(1, 0),
+            Position(2, 0),
+            Position(3, 0),
+            Position(2, 0),
+            Position(2, 1),
             Position(2, 2),
         ),
-        (
-            (Position(0, 0), Position(1, 0), Position(2, 0), Position(2, 1)),
-            Position(0, 0),
-            Position(2, 2),
-        ),
-        (
-            (
-                Position(0, 0),
-                Position(1, 0),
-                Position(2, 0),
-                Position(3, 0),
-                Position(2, 0),
-                Position(2, 1),
-                Position(2, 2),
-            ),
-            Position(0, 0),
-            Position(2, 2),
-        ),
-        (
-            (Position(0, 0), Position(1, 0), Position(1, 1), Position(2, 1), Position(2, 2)),
-            Position(0, 0),
-            Position(2, 2),
-        ),
-        (
-            (Position(0, 0), Position(2, 0), Position(2, 1), Position(2, 2)),
-            Position(0, 0),
-            Position(2, 2),
-        ),
-        (
-            (Position(0, 0), Position(1, 0), Position(2, 1), Position(2, 2)),
-            Position(0, 0),
-            Position(2, 2),
-        ),
-    ],
+        Position(0, 0),
+        Position(2, 2),
+    ),
+    (
+        (Position(0, 0), Position(1, 0), Position(1, 1), Position(2, 1), Position(2, 2)),
+        Position(0, 0),
+        Position(2, 2),
+    ),
+    (
+        (Position(0, 0), Position(2, 0), Position(2, 1), Position(2, 2)),
+        Position(0, 0),
+        Position(2, 2),
+    ),
+    (
+        (Position(0, 0), Position(1, 0), Position(2, 1), Position(2, 2)),
+        Position(0, 0),
+        Position(2, 2),
+    ),
 )
+
+
+@pytest.mark.parametrize(("supplied_positions", "origin", "destination"), INVALID_ROUTE_CANDIDATES)
 def test_invalid_supplied_position_sequences_produce_no_route(
     simulated_environment: SimulatedEnvironment,
     supplied_positions: tuple[Position, ...],
@@ -124,3 +123,14 @@ def test_invalid_supplied_position_sequences_produce_no_route(
     )
 
     assert route is None
+
+
+@pytest.mark.parametrize(("supplied_positions", "origin", "destination"), INVALID_ROUTE_CANDIDATES)
+def test_constructor_rejects_invalid_route_candidates(
+    simulated_environment: SimulatedEnvironment,
+    supplied_positions: tuple[Position, ...],
+    origin: Position,
+    destination: Position,
+) -> None:
+    with pytest.raises(ValueError):
+        Route(simulated_environment, origin, destination, supplied_positions)
