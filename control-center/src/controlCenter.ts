@@ -1,6 +1,7 @@
 export type MissionState = "pending" | "running";
 export type RobotOperationalState = "available" | "executing mission";
 export type RoutePreviewState = "unavailable" | "ready" | "playing" | "complete";
+export type WasteLifecycle = "detected" | "classified" | "targeted";
 
 export interface GridPosition {
   readonly column: number;
@@ -13,6 +14,14 @@ export interface SelectedTarget {
   readonly position: GridPosition;
 }
 
+export interface WasteHandlingStatus {
+  readonly category: "plastic";
+  readonly processability: "processable";
+  readonly lifecycle: WasteLifecycle;
+  readonly position: GridPosition;
+  readonly validatedRouteAvailable: boolean;
+}
+
 export interface ControlCenterSnapshot {
   readonly missionState: MissionState;
   readonly robotOperationalState: RobotOperationalState;
@@ -23,6 +32,7 @@ export interface ControlCenterSnapshot {
   readonly wasteCollected: number;
   readonly incidents: number;
   readonly robotPosition: GridPosition;
+  readonly wasteHandling?: WasteHandlingStatus;
   readonly selectedTarget?: SelectedTarget;
   readonly routeFrames: readonly GridPosition[];
   readonly routeFrameIndex: number;
@@ -32,6 +42,7 @@ export interface ControlCenterSnapshot {
 export interface ControlCenter {
   getSnapshot(): ControlCenterSnapshot;
   startMission(): ControlCenterSnapshot;
+  targetPlasticWaste(): ControlCenterSnapshot;
   playRoutePreview(prefersReducedMotion: boolean): ControlCenterSnapshot;
   advanceRoutePreview(): ControlCenterSnapshot;
 }
@@ -40,6 +51,14 @@ const plasticTarget: SelectedTarget = {
   label: "Plastic Waste Item",
   category: "plastic",
   position: { column: 2, row: 2 },
+};
+
+const classifiedPlasticWaste: WasteHandlingStatus = {
+  category: "plastic",
+  processability: "processable",
+  lifecycle: "classified",
+  position: plasticTarget.position,
+  validatedRouteAvailable: true,
 };
 
 // Fixed display snapshots for this visual adapter; no navigation is calculated here.
@@ -80,9 +99,21 @@ export function createLocalControlCenter(): ControlCenter {
           ...snapshot,
           missionState: "running",
           robotOperationalState: "executing mission",
-          currentTask: "Target selected: plastic waste",
-          selectedTarget: plasticTarget,
+          currentTask: "Validated route available for plastic waste",
+          wasteHandling: classifiedPlasticWaste,
           routeFrames,
+        };
+      }
+
+      return snapshot;
+    },
+    targetPlasticWaste: () => {
+      if (snapshot.wasteHandling?.lifecycle === "classified") {
+        snapshot = {
+          ...snapshot,
+          currentTask: "Target selected: plastic waste",
+          wasteHandling: { ...snapshot.wasteHandling, lifecycle: "targeted" },
+          selectedTarget: plasticTarget,
           routePreviewState: "ready",
         };
       }

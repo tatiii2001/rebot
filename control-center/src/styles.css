@@ -133,6 +133,14 @@ h2 { margin-bottom: 0; font-size: 19px; letter-spacing: -.025em; }
 .start-button:hover:not(:disabled) { background: #d8fa8a; transform: translateY(-1px); }.start-button:disabled { border-color: #41513f; color: #a8b4a5; background: #243025; cursor: not-allowed; }
 .route-preview-button { width: 100%; min-height: 42px; margin-top: 10px; border: 1px solid #42676b; color: #b9e7e9; background: transparent; border-radius: 7px; font-size: 14px; font-weight: 750; cursor: pointer; transition: border-color 160ms ease, background 160ms ease; }
 .route-preview-button:hover:not(:disabled) { border-color: var(--cyan); background: rgb(100 213 223 / 10%); }.route-preview-button:disabled { border-color: #354548; color: #718082; cursor: not-allowed; }
+.waste-handling-status { margin-top: 16px; padding: 13px; border: 1px solid rgb(100 213 223 / 28%); background: rgb(100 213 223 / 5%); }
+.waste-handling-status .eyebrow { margin-bottom: 10px; font-size: 10px; }
+.handling-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin: 0; }
+.handling-list div { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; }
+.handling-list dd { margin: 0; color: var(--cyan); font-weight: 750; }
+.handling-list .targeted-state { color: var(--accent); }.handling-list .classified-state { color: var(--cyan); }
+.target-button { width: 100%; min-height: 42px; margin-top: 10px; border: 1px solid #527b80; color: #d2f5f7; background: rgb(100 213 223 / 10%); border-radius: 7px; font-size: 14px; font-weight: 750; cursor: pointer; transition: border-color 160ms ease, background 160ms ease; }
+.target-button:hover:not(:disabled) { border-color: var(--cyan); background: rgb(100 213 223 / 17%); }.target-button:disabled { border-color: #41513f; color: #a8b4a5; background: #243025; cursor: not-allowed; }
 .battery-meter { height: 9px; overflow: hidden; border: 1px solid #3a4a3f; background: #0b1313; border-radius: 2px; }.battery-meter span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent-deep), var(--accent)); }
 .current-task { display: grid; gap: 5px; margin: 19px 0 0; font-size: 15px; font-weight: 700; }.current-task span { color: var(--muted); font-size: 12px; font-weight: 500; }
 

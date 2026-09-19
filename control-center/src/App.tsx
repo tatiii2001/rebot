@@ -58,6 +58,8 @@ function StatusValue({ value }: { readonly value: string }) {
 function ControlCenterScreen({ controlCenter }: { readonly controlCenter: ControlCenter }) {
   const [snapshot, setSnapshot] = useState(() => controlCenter.getSnapshot());
   const isRunning = snapshot.missionState === "running";
+  const isClassified = snapshot.wasteHandling?.lifecycle === "classified";
+  const isTargeted = snapshot.wasteHandling?.lifecycle === "targeted";
   const isRouteAvailable = snapshot.routePreviewState === "ready";
   const isRouteComplete = snapshot.routePreviewState === "complete";
 
@@ -82,6 +84,10 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
     setSnapshot(controlCenter.playRoutePreview(prefersReducedMotion));
   }
 
+  function targetPlasticWaste() {
+    setSnapshot(controlCenter.targetPlasticWaste());
+  }
+
   return (
     <main className="control-center-shell">
       <header className="site-header">
@@ -104,12 +110,12 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
               <h2 id="environment-heading">Collection sector A-04</h2>
             </div>
             <div className="environment-signals">
-              {snapshot.routePreviewState !== "unavailable" && <span className="route-label">Predefined local route</span>}
+              {snapshot.wasteHandling?.validatedRouteAvailable && <span className="route-label">Validated local route</span>}
               <span className="grid-status">Grid online</span>
             </div>
           </div>
           <div aria-label="Environment grid with one Robot, four Waste Items, five Static Obstacles, and one Compatible Collection Point" className="environment-grid">
-            {snapshot.routeFrames.map((position, index) => {
+            {isTargeted && snapshot.routeFrames.map((position, index) => {
               const progress = index < snapshot.routeFrameIndex
                 ? "completed"
                 : index === snapshot.routeFrameIndex ? "current" : "remaining";
@@ -151,9 +157,22 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
             <button className="start-button" disabled={isRunning} onClick={startMission} type="button">
               {isRunning ? "Mission running" : "Start Mission"}
             </button>
-            <button className="route-preview-button" disabled={!isRouteAvailable} onClick={playRoutePreview} type="button">
+            {snapshot.wasteHandling && (
+              <section aria-label="Waste handling status" className="waste-handling-status">
+                <p className="eyebrow">{isTargeted ? "Targeted Waste" : "Classified Waste"}</p>
+                <dl className="handling-list">
+                  <div><dt>Category</dt><dd>Plastic</dd></div>
+                  <div><dt>Processability</dt><dd>Processable</dd></div>
+                  <div><dt>Lifecycle</dt><dd className={isTargeted ? "targeted-state" : "classified-state"}>{isTargeted ? "Targeted" : "Classified"}</dd></div>
+                  <div><dt>Route</dt><dd>{isTargeted ? "Preview ready" : "Validated"}</dd></div>
+                </dl>
+              </section>
+            )}
+            {isClassified && <button className="target-button" onClick={targetPlasticWaste} type="button">Target plastic waste</button>}
+            {isTargeted && <button className="target-button" disabled type="button">Plastic waste targeted</button>}
+            {isTargeted && <button className="route-preview-button" disabled={!isRouteAvailable} onClick={playRoutePreview} type="button">
               {isRouteComplete ? "Route preview complete" : "Play route preview"}
-            </button>
+            </button>}
           </section>
 
           <section aria-labelledby="robot-heading" className="panel robot-panel">

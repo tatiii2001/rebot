@@ -4,19 +4,54 @@ import { vi } from "vitest";
 import { App } from "./App";
 
 describe("Control Center start mission", () => {
-  it("shows the local visual mission transition after the Operator starts it", async () => {
-    const user = userEvent.setup();
+  it("does not present a target or route playback before the Mission starts", () => {
     render(<App />);
 
     expect(screen.getByText("pending")).toBeInTheDocument();
     expect(screen.getByText("available")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Selected target: Plastic Waste Item at grid position 2, 2")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Play route preview" })).not.toBeInTheDocument();
+  });
+
+  it("shows classified processable plastic and a targeting action after the Operator starts it", async () => {
+    const user = userEvent.setup();
+    render(<App />);
 
     await user.click(screen.getByRole("button", { name: "Start Mission" }));
 
     expect(screen.getByText("running")).toBeInTheDocument();
     expect(screen.getByText("executing mission")).toBeInTheDocument();
-    expect(screen.getByText("Target selected: plastic waste")).toBeInTheDocument();
+    expect(screen.getByText("Plastic")).toBeInTheDocument();
+    expect(screen.getByText("Processable")).toBeInTheDocument();
+    expect(screen.getByText("Classified")).toBeInTheDocument();
+    expect(screen.getByText("Classified Waste")).toBeInTheDocument();
+    expect(screen.queryByText("Classification candidate")).not.toBeInTheDocument();
+    expect(screen.getByText("Validated route available for plastic waste")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Selected target: Plastic Waste Item at grid position 2, 2")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Target plastic waste" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Play route preview" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mission running" })).toBeDisabled();
+    expect(screen.getByText("84%")).toBeInTheDocument();
+    expect(screen.getByText("0%")).toBeInTheDocument();
+    expect(screen.getByText("Waste detected").nextElementSibling).toHaveTextContent("4");
+    expect(screen.getByText("Waste collected").nextElementSibling).toHaveTextContent("0");
+    expect(screen.getByText("Incidents").nextElementSibling).toHaveTextContent("0");
+  });
+
+  it("targets classified plastic once before exposing route playback", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Start Mission" }));
+    await user.click(screen.getByRole("button", { name: "Target plastic waste" }));
+
+    expect(screen.getByText("Targeted")).toBeInTheDocument();
+    expect(screen.getByText("Targeted Waste")).toBeInTheDocument();
+    expect(screen.getByText("Plastic")).toBeInTheDocument();
+    expect(screen.getByText("Target selected: plastic waste")).toBeInTheDocument();
+    expect(screen.getByLabelText("Selected target: Plastic Waste Item at grid position 2, 2")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Plastic waste targeted" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Play route preview" })).toBeEnabled();
   });
 });
 
@@ -26,18 +61,27 @@ describe("Control Center route preview", () => {
     vi.unstubAllGlobals();
   });
 
-  it("plays the predefined plastic Waste Item route after the Mission starts", () => {
-    vi.useFakeTimers();
+  it("cannot expose route playback before plastic Waste is targeted", () => {
     render(<App />);
-
-    expect(screen.getByRole("button", { name: "Play route preview" })).toBeDisabled();
-    expect(screen.queryByText("Predefined local route")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Start Mission" }));
 
+    expect(screen.queryByRole("button", { name: "Play route preview" })).not.toBeInTheDocument();
+  });
+
+  it("plays the predefined plastic Waste Item route after plastic Waste is targeted", () => {
+    vi.useFakeTimers();
+    render(<App />);
+
+    expect(screen.queryByRole("button", { name: "Play route preview" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Validated local route")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Start Mission" }));
+    fireEvent.click(screen.getByRole("button", { name: "Target plastic waste" }));
+
     expect(screen.getByText("Target selected: plastic waste")).toBeInTheDocument();
     expect(screen.getByLabelText("Selected target: Plastic Waste Item at grid position 2, 2")).toBeInTheDocument();
-    expect(screen.getByText("Predefined local route")).toBeInTheDocument();
+    expect(screen.getByText("Validated local route")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Play route preview" })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Play route preview" }));
@@ -61,6 +105,8 @@ describe("Control Center route preview", () => {
     expect(screen.getByText("84%")).toBeInTheDocument();
     expect(screen.getByText("0%")).toBeInTheDocument();
     expect(screen.getByText("Waste collected").nextElementSibling).toHaveTextContent("0");
+    expect(screen.getByText("Targeted")).toBeInTheDocument();
+    expect(screen.queryByText("Collected")).not.toBeInTheDocument();
   });
 
   it("completes the same route immediately when reduced motion is preferred", () => {
@@ -69,8 +115,10 @@ describe("Control Center route preview", () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: "Start Mission" }));
+    fireEvent.click(screen.getByRole("button", { name: "Target plastic waste" }));
     fireEvent.click(screen.getByRole("button", { name: "Play route preview" }));
 
+    expect(screen.getByText("Targeted")).toBeInTheDocument();
     expect(screen.getByText("Ready to collect plastic waste")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Route preview complete" })).toBeDisabled();
     expect(screen.getByLabelText("Robot at grid position 2, 3")).toBeInTheDocument();
