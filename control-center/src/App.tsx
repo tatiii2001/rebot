@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   createLocalControlCenter,
   type ControlCenter,
@@ -57,14 +57,17 @@ function StatusValue({ value }: { readonly value: string }) {
 
 function ControlCenterScreen({ controlCenter }: { readonly controlCenter: ControlCenter }) {
   const [snapshot, setSnapshot] = useState(() => controlCenter.getSnapshot());
+  const collectButtonRef = useRef<HTMLButtonElement>(null);
   const isRunning = snapshot.missionState === "running";
   const isClassified = snapshot.wasteHandling?.lifecycle === "classified";
   const isTargeted = snapshot.wasteHandling?.lifecycle === "targeted";
+  const isCollected = snapshot.wasteHandling?.lifecycle === "collected";
   const isRouteAvailable = snapshot.routePreviewState === "ready";
   const isRouteComplete = snapshot.routePreviewState === "complete";
   const robotHasReachedTarget = isTargeted
     && snapshot.robotPosition.column === snapshot.selectedTarget?.position.column
     && snapshot.robotPosition.row === snapshot.selectedTarget?.position.row;
+  const canCollect = isTargeted && isRouteComplete && robotHasReachedTarget;
 
   useEffect(() => {
     if (snapshot.routePreviewState !== "playing") {
@@ -78,6 +81,12 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
     return () => window.clearInterval(playback);
   }, [controlCenter, snapshot.routePreviewState]);
 
+  useEffect(() => {
+    if (canCollect) {
+      collectButtonRef.current?.focus();
+    }
+  }, [canCollect]);
+
   function startMission() {
     setSnapshot(controlCenter.startMission());
   }
@@ -90,6 +99,14 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
   function targetPlasticWaste() {
     setSnapshot(controlCenter.targetPlasticWaste());
   }
+
+  function collectPlasticWaste() {
+    setSnapshot(controlCenter.collectPlasticWaste());
+  }
+
+  const gridDescription = isCollected
+    ? "Environment grid with one Robot, three ground Waste Items, five Static Obstacles, and one Compatible Collection Point. Robot carries one plastic Waste Item at grid position 2, 2"
+    : `Environment grid with one Robot, four Waste Items, five Static Obstacles, and one Compatible Collection Point${robotHasReachedTarget ? ". Robot and selected target occupy grid position 2, 2; the Waste Item remains targeted and uncollected" : ""}`;
 
   return (
     <main className="control-center-shell">
@@ -117,7 +134,7 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
               <span className="grid-status">Grid online</span>
             </div>
           </div>
-          <div aria-label={`Environment grid with one Robot, four Waste Items, five Static Obstacles, and one Compatible Collection Point${robotHasReachedTarget ? ". Robot and selected target occupy grid position 2, 2; the Waste Item remains targeted and uncollected" : ""}`} className="environment-grid">
+          <div aria-label={gridDescription} className="environment-grid">
             {isTargeted && snapshot.routeFrames.map((position, index) => {
               const progress = index < snapshot.routeFrameIndex
                 ? "completed"
@@ -126,6 +143,9 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
             })}
             {obstacles.map((marker, index) => <GridMarker key={`obstacle-${index}`} marker={marker} />)}
             {wasteItems.map((marker) => {
+              if (isCollected && marker.column === 2 && marker.row === 2) {
+                return null;
+              }
               const isSelectedTarget = marker.column === snapshot.selectedTarget?.position.column && marker.row === snapshot.selectedTarget.position.row;
               const targetMarker = isSelectedTarget
                 ? { ...marker, className: `${marker.className} targeted-waste`, label: `Selected target: ${marker.label} at grid position ${marker.column}, ${marker.row}` }
@@ -134,6 +154,7 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
             })}
             <GridMarker marker={collectionPoint} />
             <GridMarker marker={{ ...robot, column: snapshot.robotPosition.column, row: snapshot.robotPosition.row, label: `Robot at grid position ${snapshot.robotPosition.column}, ${snapshot.robotPosition.row}` }} />
+            {isCollected && <GridMarker marker={{ className: "carried-waste", label: "Robot carrying one plastic Waste Item at grid position 2, 2", column: snapshot.robotPosition.column, row: snapshot.robotPosition.row }} />}
           </div>
           <div aria-label="Environment legend" className="environment-legend">
             <span><i className="legend-icon robot-icon" aria-hidden="true" />Robot</span>
@@ -162,20 +183,22 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
             </button>
             {snapshot.wasteHandling && (
               <section aria-label="Waste handling status" className="waste-handling-status">
-                <p className="eyebrow">{isTargeted ? "Targeted Waste" : "Classified Waste"}</p>
+                <p className="eyebrow">{isCollected ? "Collected Waste" : isTargeted ? "Targeted Waste" : "Classified Waste"}</p>
                 <dl className="handling-list">
                   <div><dt>Category</dt><dd>Plastic</dd></div>
                   <div><dt>Processability</dt><dd>Processable</dd></div>
-                  <div><dt>Lifecycle</dt><dd className={isTargeted ? "targeted-state" : "classified-state"}>{isTargeted ? "Targeted" : "Classified"}</dd></div>
-                  <div><dt>Route</dt><dd>{isTargeted ? "Preview ready" : "Validated"}</dd></div>
+                  <div><dt>Lifecycle</dt><dd className={isCollected ? "collected-state" : isTargeted ? "targeted-state" : "classified-state"}>{isCollected ? "Collected" : isTargeted ? "Targeted" : "Classified"}</dd></div>
+                  {isCollected ? <><div><dt>Carrying</dt><dd>Robot</dd></div><div><dt>Battery cost</dt><dd>0%</dd></div></> : <div><dt>Route</dt><dd>{isTargeted ? "Preview ready" : "Validated"}</dd></div>}
                 </dl>
               </section>
             )}
             {isClassified && <button className="target-button" onClick={targetPlasticWaste} type="button">Target plastic waste</button>}
             {isTargeted && <button className="target-button" disabled type="button">Plastic waste targeted</button>}
-            {isTargeted && <button className="route-preview-button" disabled={!isRouteAvailable} onClick={playRoutePreview} type="button">
+            {(isTargeted || isCollected) && <button className="route-preview-button" disabled={!isRouteAvailable} onClick={playRoutePreview} type="button">
               {isRouteComplete ? "Route preview complete" : "Play route preview"}
             </button>}
+            {canCollect && <button className="collect-button" onClick={collectPlasticWaste} ref={collectButtonRef} type="button">Collect plastic waste</button>}
+            {isCollected && <p aria-live="polite" className="collection-result">Plastic waste collected</p>}
           </section>
 
           <section aria-labelledby="robot-heading" className="panel robot-panel">

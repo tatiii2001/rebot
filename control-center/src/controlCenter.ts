@@ -1,7 +1,7 @@
 export type MissionState = "pending" | "running";
 export type RobotOperationalState = "available" | "executing mission";
 export type RoutePreviewState = "unavailable" | "ready" | "playing" | "complete";
-export type WasteLifecycle = "detected" | "classified" | "targeted";
+export type WasteLifecycle = "detected" | "classified" | "targeted" | "collected";
 
 export interface GridPosition {
   readonly column: number;
@@ -45,6 +45,7 @@ export interface ControlCenter {
   targetPlasticWaste(): ControlCenterSnapshot;
   playRoutePreview(prefersReducedMotion: boolean): ControlCenterSnapshot;
   advanceRoutePreview(): ControlCenterSnapshot;
+  collectPlasticWaste(): ControlCenterSnapshot;
 }
 
 const plasticTarget: SelectedTarget = {
@@ -127,7 +128,7 @@ export function createLocalControlCenter(): ControlCenter {
         snapshot = prefersReducedMotion
             ? {
                 ...snapshot,
-                currentTask: "Reached targeted plastic waste; ready for a future collection action",
+                currentTask: "Reached targeted plastic waste; ready to collect",
                 robotPosition: routeFrames[finalFrameIndex],
                 batteryLevel: initialSnapshot.batteryLevel - finalFrameIndex,
                 routeFrameIndex: finalFrameIndex,
@@ -149,12 +150,27 @@ export function createLocalControlCenter(): ControlCenter {
         snapshot = {
           ...snapshot,
           currentTask: isComplete
-            ? "Reached targeted plastic waste; ready for a future collection action"
+            ? "Reached targeted plastic waste; ready to collect"
             : `Following route to plastic waste: ${nextFrameIndex + 1} of ${routeFrames.length} positions`,
           robotPosition: routeFrames[nextFrameIndex],
           batteryLevel: snapshot.batteryLevel - 1,
           routeFrameIndex: nextFrameIndex,
           routePreviewState: isComplete ? "complete" : "playing",
+        };
+      }
+
+      return snapshot;
+    },
+    collectPlasticWaste: () => {
+      const robotAtPlasticWaste = snapshot.robotPosition.column === plasticTarget.position.column
+        && snapshot.robotPosition.row === plasticTarget.position.row;
+      if (snapshot.wasteHandling?.lifecycle === "targeted" && snapshot.routePreviewState === "complete" && robotAtPlasticWaste) {
+        snapshot = {
+          ...snapshot,
+          currentTask: "Carrying plastic waste",
+          wasteCollected: 1,
+          wasteHandling: { ...snapshot.wasteHandling, lifecycle: "collected" },
+          selectedTarget: undefined,
         };
       }
 

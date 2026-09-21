@@ -12,6 +12,7 @@ describe("Control Center start mission", () => {
     expect(screen.getByText("84%")).toBeInTheDocument();
     expect(screen.queryByLabelText("Selected target: Plastic Waste Item at grid position 2, 2")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Play route preview" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Collect plastic waste" })).not.toBeInTheDocument();
   });
 
   it("shows classified processable plastic and a targeting action after the Operator starts it", async () => {
@@ -31,9 +32,10 @@ describe("Control Center start mission", () => {
     expect(screen.queryByLabelText("Selected target: Plastic Waste Item at grid position 2, 2")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Target plastic waste" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Play route preview" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Collect plastic waste" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mission running" })).toBeDisabled();
     expect(screen.getByText("84%")).toBeInTheDocument();
-    expect(screen.getByText("0%")).toBeInTheDocument();
+    expect(screen.getByText("Mission Progress").nextElementSibling).toHaveTextContent("0%");
     expect(screen.getByText("Waste detected").nextElementSibling).toHaveTextContent("4");
     expect(screen.getByText("Waste collected").nextElementSibling).toHaveTextContent("0");
     expect(screen.getByText("Incidents").nextElementSibling).toHaveTextContent("0");
@@ -53,6 +55,7 @@ describe("Control Center start mission", () => {
     expect(screen.getByLabelText("Selected target: Plastic Waste Item at grid position 2, 2")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Plastic waste targeted" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Play route preview" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Collect plastic waste" })).not.toBeInTheDocument();
     expect(screen.getByText("84%")).toBeInTheDocument();
   });
 });
@@ -90,6 +93,7 @@ describe("Control Center route preview", () => {
 
     expect(screen.getByText("Following route to plastic waste: 1 of 8 positions")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Play route preview" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Collect plastic waste" })).not.toBeInTheDocument();
 
     act(() => {
       vi.advanceTimersByTime(550);
@@ -109,8 +113,9 @@ describe("Control Center route preview", () => {
       vi.advanceTimersByTime(4_000);
     });
 
-    expect(screen.getByText("Reached targeted plastic waste; ready for a future collection action")).toBeInTheDocument();
+    expect(screen.getByText("Reached targeted plastic waste; ready to collect")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Route preview complete" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Collect plastic waste" })).toBeEnabled();
     expect(screen.getByLabelText("Robot at grid position 2, 2")).toBeInTheDocument();
     expect(screen.getByLabelText(/Robot and selected target occupy grid position 2, 2/)).toBeInTheDocument();
     expect(screen.getByText("77%")).toBeInTheDocument();
@@ -122,9 +127,47 @@ describe("Control Center route preview", () => {
     expect(screen.getByText("Incidents").nextElementSibling).toHaveTextContent("0");
     expect(screen.getByText("Targeted")).toBeInTheDocument();
     expect(screen.queryByText("Collected")).not.toBeInTheDocument();
+    expect(screen.getByText("Waste collected").nextElementSibling).toHaveTextContent("0");
   });
 
-  it("completes the same route immediately when reduced motion is preferred", () => {
+  it("collects plastic Waste only after route completion", () => {
+    vi.useFakeTimers();
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Start Mission" }));
+    fireEvent.click(screen.getByRole("button", { name: "Target plastic waste" }));
+    fireEvent.click(screen.getByRole("button", { name: "Play route preview" }));
+
+    act(() => {
+      vi.advanceTimersByTime(4_000);
+    });
+
+    const collectButton = screen.getByRole("button", { name: "Collect plastic waste" });
+    expect(collectButton).toHaveFocus();
+    fireEvent.click(collectButton);
+
+    expect(screen.getByText("Collected Waste")).toBeInTheDocument();
+    expect(screen.getByText("Collected")).toBeInTheDocument();
+    expect(screen.getByText("Carrying").nextElementSibling).toHaveTextContent("Robot");
+    expect(screen.getByText("Battery cost").nextElementSibling).toHaveTextContent("0%");
+    expect(screen.getByText("Carrying plastic waste")).toBeInTheDocument();
+    expect(screen.getByLabelText("Robot carrying one plastic Waste Item at grid position 2, 2")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Selected target: Plastic Waste Item at grid position 2, 2")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Environment grid with one Robot, three ground Waste Items, five Static Obstacles, and one Compatible Collection Point. Robot carries one plastic Waste Item at grid position 2, 2")).toBeInTheDocument();
+    expect(screen.getByText("77%")).toBeInTheDocument();
+    expect(screen.getByLabelText("Robot at grid position 2, 2")).toBeInTheDocument();
+    expect(screen.getByText("running")).toBeInTheDocument();
+    expect(screen.getByText("executing mission")).toBeInTheDocument();
+    expect(screen.getByText("Mission Progress").nextElementSibling).toHaveTextContent("0%");
+    expect(screen.getByText("Waste detected").nextElementSibling).toHaveTextContent("4");
+    expect(screen.getByText("Waste collected").nextElementSibling).toHaveTextContent("1");
+    expect(screen.getByText("Incidents").nextElementSibling).toHaveTextContent("0");
+    expect(screen.getByRole("button", { name: "Route preview complete" })).toBeDisabled();
+    expect(screen.getByText("Plastic waste collected")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Collect plastic waste" })).not.toBeInTheDocument();
+  });
+
+  it("completes the same route immediately when reduced motion is preferred without collecting", () => {
     vi.useFakeTimers();
     vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
     render(<App />);
@@ -134,12 +177,32 @@ describe("Control Center route preview", () => {
     fireEvent.click(screen.getByRole("button", { name: "Play route preview" }));
 
     expect(screen.getByText("Targeted")).toBeInTheDocument();
-    expect(screen.getByText("Reached targeted plastic waste; ready for a future collection action")).toBeInTheDocument();
+    expect(screen.getByText("Reached targeted plastic waste; ready to collect")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Route preview complete" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Collect plastic waste" })).toBeEnabled();
     expect(screen.getByLabelText("Robot at grid position 2, 2")).toBeInTheDocument();
     expect(screen.getByLabelText(/Robot and selected target occupy grid position 2, 2/)).toBeInTheDocument();
     expect(screen.getByText("77%")).toBeInTheDocument();
     expect(screen.getByText("Targeted")).toBeInTheDocument();
     expect(screen.queryByText("Collected")).not.toBeInTheDocument();
+    expect(screen.getByText("Waste collected").nextElementSibling).toHaveTextContent("0");
+  });
+
+  it("collects the same final snapshot when reduced motion is preferred", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Start Mission" }));
+    fireEvent.click(screen.getByRole("button", { name: "Target plastic waste" }));
+    fireEvent.click(screen.getByRole("button", { name: "Play route preview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Collect plastic waste" }));
+
+    expect(screen.getByText("Collected")).toBeInTheDocument();
+    expect(screen.getByText("Carrying plastic waste")).toBeInTheDocument();
+    expect(screen.getByText("77%")).toBeInTheDocument();
+    expect(screen.getByLabelText("Robot at grid position 2, 2")).toBeInTheDocument();
+    expect(screen.getByText("Waste collected").nextElementSibling).toHaveTextContent("1");
+    expect(screen.getByText("Plastic waste collected")).toBeInTheDocument();
   });
 });

@@ -113,6 +113,7 @@ h2 { margin-bottom: 0; font-size: 19px; letter-spacing: -.025em; }
 .waste { width: 31%; height: 31%; border: 2px solid #f4f8e6; border-radius: 50%; box-shadow: 0 0 0 3px rgb(244 248 230 / 10%); }
 .plastic { background: #59d7dc; }.paper { background: #f3d779; }.metal { background: #c6cfd1; }.organic { background: #b1d56a; }
 .targeted-waste { z-index: 2; box-shadow: 0 0 0 3px rgb(244 248 230 / 10%), 0 0 0 8px rgb(200 243 107 / 72%); }
+.carried-waste { z-index: 4; width: 22%; height: 22%; border: 2px solid #edffc5; background: var(--cyan); border-radius: 50%; box-shadow: 14px -13px 0 -3px var(--accent); }
 .collection-point { width: 60%; height: 60%; border: 3px solid var(--cyan); border-radius: 4px; background: repeating-linear-gradient(45deg, rgb(100 213 223 / 12%) 0 4px, transparent 4px 8px); }
 .collection-point::after { position: absolute; inset: 25%; content: ""; background: var(--cyan); border-radius: 1px; }
 
@@ -139,8 +140,12 @@ h2 { margin-bottom: 0; font-size: 19px; letter-spacing: -.025em; }
 .handling-list div { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; }
 .handling-list dd { margin: 0; color: var(--cyan); font-weight: 750; }
 .handling-list .targeted-state { color: var(--accent); }.handling-list .classified-state { color: var(--cyan); }
+.handling-list .collected-state { color: var(--accent); }
 .target-button { width: 100%; min-height: 42px; margin-top: 10px; border: 1px solid #527b80; color: #d2f5f7; background: rgb(100 213 223 / 10%); border-radius: 7px; font-size: 14px; font-weight: 750; cursor: pointer; transition: border-color 160ms ease, background 160ms ease; }
 .target-button:hover:not(:disabled) { border-color: var(--cyan); background: rgb(100 213 223 / 17%); }.target-button:disabled { border-color: #41513f; color: #a8b4a5; background: #243025; cursor: not-allowed; }
+.collect-button { width: 100%; min-height: 42px; margin-top: 10px; border: 1px solid #d7fa85; color: #14200c; background: var(--accent); border-radius: 7px; font-size: 14px; font-weight: 800; cursor: pointer; transition: transform 160ms ease, background 160ms ease; }
+.collect-button:hover { background: #d8fa8a; transform: translateY(-1px); }
+.collection-result { margin: 10px 0 0; color: var(--accent); font-size: 14px; font-weight: 750; }
 .battery-meter { height: 9px; overflow: hidden; border: 1px solid #3a4a3f; background: #0b1313; border-radius: 2px; }.battery-meter span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent-deep), var(--accent)); }
 .current-task { display: grid; gap: 5px; margin: 19px 0 0; font-size: 15px; font-weight: 700; }.current-task span { color: var(--muted); font-size: 12px; font-weight: 500; }
 
