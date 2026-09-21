@@ -18,11 +18,12 @@ class WasteLifecycleState(StrEnum):
     DETECTED = "detected"
     CLASSIFIED = "classified"
     TARGETED = "targeted"
+    COLLECTED = "collected"
 
 
 class WasteItem:
     def __init__(self, position: Position) -> None:
-        if not isinstance(cast(object, position), Position):
+        if type(position) is not Position:
             raise TypeError("Waste Item Position must be a Position")
 
         self._position = position
@@ -73,3 +74,6 @@ class WasteItem:
             raise ValueError("Targeting Route destination must match Waste Item Position")
 
         self._lifecycle_state = WasteLifecycleState.TARGETED
+
+    def _collect_targeted_waste(self) -> None:
+        self._lifecycle_state = WasteLifecycleState.COLLECTED

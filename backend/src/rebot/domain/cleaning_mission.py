@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import cast
 
 from rebot.domain.battery_level import BatteryLevel
 from rebot.domain.identity import CleaningMissionIdentity, RobotIdentity
@@ -10,6 +9,7 @@ from rebot.domain.mission_start_rejection import MissionStartRejection
 from rebot.domain.position import Position
 from rebot.domain.required_incident import RequiredIncident
 from rebot.domain.validate_supplied_route import Route
+from rebot.domain.waste_item import WasteItem
 
 
 class MissionState(StrEnum):
@@ -39,7 +39,7 @@ class Robot(_StartCleaningMissionParticipant):
     def __init__(
         self, identity: RobotIdentity, position: Position, battery_level: BatteryLevel
     ) -> None:
-        if not isinstance(cast(object, position), Position):
+        if type(position) is not Position:
             raise TypeError("Robot Position must be a Position")
         if type(battery_level) is not BatteryLevel:
             raise TypeError("Robot Battery Level must be a BatteryLevel")
@@ -49,6 +49,7 @@ class Robot(_StartCleaningMissionParticipant):
         self._battery_level = battery_level
         self._operational_state = RobotOperationalState.AVAILABLE
         self._current_active_mission_identity: CleaningMissionIdentity | None = None
+        self._carried_waste_item: WasteItem | None = None
 
     @classmethod
     def out_of_service(
@@ -78,6 +79,10 @@ class Robot(_StartCleaningMissionParticipant):
     def current_active_mission_identity(self) -> CleaningMissionIdentity | None:
         return self._current_active_mission_identity
 
+    @property
+    def carried_waste_item(self) -> WasteItem | None:
+        return self._carried_waste_item
+
     def create_cleaning_mission(
         self, identity: CleaningMissionIdentity
     ) -> CleaningMission | MissionAssignmentRejection:
@@ -90,6 +95,9 @@ class Robot(_StartCleaningMissionParticipant):
 
     def _start_for_cleaning_mission(self) -> None:
         self._operational_state = RobotOperationalState.EXECUTING_MISSION
+
+    def _carry_collected_waste_item(self, waste_item: WasteItem) -> None:
+        self._carried_waste_item = waste_item
 
     def follow_validated_route(self, route: Route) -> RequiredIncident | None:
         if type(route) is not Route:
