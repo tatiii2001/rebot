@@ -1,8 +1,10 @@
 import pytest
 
+from rebot.domain.battery_level import BatteryLevel
 from rebot.domain.cleaning_mission import CleaningMission, MissionState
 from rebot.domain.identity import CleaningMissionIdentity, RobotIdentity
 from rebot.domain.mission_assignment_rejection import MissionAssignmentRejection
+from rebot.domain.position import Position
 from rebot.domain.robot import Robot, RobotOperationalState
 
 
@@ -14,7 +16,7 @@ def test_cleaning_mission_cannot_be_instantiated_directly() -> None:
 def test_robot_creates_pending_cleaning_mission_with_reciprocal_assignment() -> None:
     robot_identity = RobotIdentity("robot-1")
     mission_identity = CleaningMissionIdentity("mission-1")
-    robot = Robot(robot_identity)
+    robot = Robot(robot_identity, Position(0, 0), BatteryLevel(100))
 
     result = robot.create_cleaning_mission(mission_identity)
 
@@ -30,7 +32,7 @@ def test_robot_creates_pending_cleaning_mission_with_reciprocal_assignment() -> 
 def test_robot_neutrally_rejects_another_active_mission() -> None:
     robot_identity = RobotIdentity("robot-1")
     first_mission_identity = CleaningMissionIdentity("mission-1")
-    robot = Robot(robot_identity)
+    robot = Robot(robot_identity, Position(0, 0), BatteryLevel(100))
     first_result = robot.create_cleaning_mission(first_mission_identity)
     assert isinstance(first_result, CleaningMission)
 

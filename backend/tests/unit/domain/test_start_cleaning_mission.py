@@ -3,9 +3,11 @@ from typing import cast
 
 import pytest
 
+from rebot.domain.battery_level import BatteryLevel
 from rebot.domain.cleaning_mission import CleaningMission, MissionState
 from rebot.domain.identity import CleaningMissionIdentity, RobotIdentity
 from rebot.domain.mission_start_rejection import MissionStartRejection
+from rebot.domain.position import Position
 from rebot.domain.robot import Robot, RobotOperationalState
 from rebot.domain.start_cleaning_mission import start_cleaning_mission
 
@@ -16,6 +18,8 @@ def test_public_robot_construction_cannot_select_executing_mission() -> None:
     with pytest.raises(TypeError):
         constructor(
             RobotIdentity("robot-1"),
+            Position(0, 0),
+            BatteryLevel(100),
             RobotOperationalState.EXECUTING_MISSION,
         )
 
@@ -23,7 +27,7 @@ def test_public_robot_construction_cannot_select_executing_mission() -> None:
 def test_starts_a_pending_mission_with_an_available_assigned_robot() -> None:
     robot_identity = RobotIdentity("robot-1")
     mission_identity = CleaningMissionIdentity("mission-1")
-    robot = Robot(robot_identity)
+    robot = Robot(robot_identity, Position(0, 0), BatteryLevel(100))
     mission = robot.create_cleaning_mission(mission_identity)
     assert isinstance(mission, CleaningMission)
 
@@ -41,7 +45,7 @@ def test_starts_a_pending_mission_with_an_available_assigned_robot() -> None:
 def test_neutrally_rejects_repeating_a_successful_start() -> None:
     robot_identity = RobotIdentity("robot-1")
     mission_identity = CleaningMissionIdentity("mission-1")
-    robot = Robot(robot_identity)
+    robot = Robot(robot_identity, Position(0, 0), BatteryLevel(100))
     mission = robot.create_cleaning_mission(mission_identity)
     assert isinstance(mission, CleaningMission)
     assert start_cleaning_mission(mission, robot) is None
@@ -60,7 +64,7 @@ def test_neutrally_rejects_repeating_a_successful_start() -> None:
 def test_neutrally_rejects_starting_with_an_out_of_service_assigned_robot() -> None:
     robot_identity = RobotIdentity("robot-1")
     mission_identity = CleaningMissionIdentity("mission-1")
-    robot = Robot.out_of_service(robot_identity)
+    robot = Robot.out_of_service(robot_identity, Position(0, 0), BatteryLevel(100))
     mission = robot.create_cleaning_mission(mission_identity)
     assert isinstance(mission, CleaningMission)
 
@@ -79,9 +83,9 @@ def test_neutrally_rejects_when_mission_identifies_a_different_robot() -> None:
     assigned_robot_identity = RobotIdentity("robot-1")
     other_robot_identity = RobotIdentity("robot-2")
     mission_identity = CleaningMissionIdentity("mission-1")
-    assigned_robot = Robot(assigned_robot_identity)
+    assigned_robot = Robot(assigned_robot_identity, Position(0, 0), BatteryLevel(100))
     mission = assigned_robot.create_cleaning_mission(mission_identity)
-    other_robot = Robot(other_robot_identity)
+    other_robot = Robot(other_robot_identity, Position(0, 0), BatteryLevel(100))
     assert isinstance(mission, CleaningMission)
 
     result = start_cleaning_mission(mission, other_robot)
@@ -103,8 +107,8 @@ def test_neutrally_rejects_when_robot_identifies_a_different_active_mission() ->
     second_robot_identity = RobotIdentity("robot-2")
     first_mission_identity = CleaningMissionIdentity("mission-1")
     second_mission_identity = CleaningMissionIdentity("mission-2")
-    first_robot = Robot(first_robot_identity)
-    second_robot = Robot(second_robot_identity)
+    first_robot = Robot(first_robot_identity, Position(0, 0), BatteryLevel(100))
+    second_robot = Robot(second_robot_identity, Position(0, 0), BatteryLevel(100))
     first_mission = first_robot.create_cleaning_mission(first_mission_identity)
     second_mission = second_robot.create_cleaning_mission(second_mission_identity)
     assert isinstance(first_mission, CleaningMission)

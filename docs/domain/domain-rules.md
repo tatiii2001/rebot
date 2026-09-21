@@ -68,9 +68,9 @@ Transitions into or out of `charging` and behavior while charging are deferred d
 | `NAV-006` | Confirmed invariant | Every Position in a Route is inside the Simulated Environment boundaries. |
 | `NAV-007` | Confirmed invariant | A Route cannot include a Position occupied by a static Obstacle. |
 | `NAV-008` | Confirmed invariant | Consecutive Positions in a Route are orthogonally adjacent by one horizontal or vertical grid step; diagonal movement is not allowed in the MVP. |
-| `NAV-009` | Confirmed behavior | A Robot following a Route occupies its Positions in sequence. |
+| `NAV-009` | Confirmed behavior | A Robot following an already validated Route attempts movement steps from its current Position to each next Position in order. Each successful step advances under `BATTERY-002`. |
 
-Robot movement consumes Battery Level under `BATTERY-002`. The exact Route-planning algorithm, route cost, tie-breaking, and dynamic-Obstacle behavior remain deferred.
+Robot movement consumes Battery Level under `BATTERY-002`. The exact Route-planning algorithm, route selection, route cost, tie-breaking, and dynamic-Obstacle behavior remain deferred.
 
 ## Waste Classification and Lifecycle Rules
 
@@ -96,7 +96,7 @@ The future handling policy for `unknown`, including whether a future policy make
 | --- | --- | --- |
 | `WASTE-012` | Confirmed invariant | A Waste Item can be collected only when the Robot occupies the Waste Item's Position. |
 | `WASTE-013` | Confirmed invariant | A Robot carrying a Waste Item cannot collect another Waste Item. |
-| `WASTE-014` | Confirmed behavior | Successful collection atomically changes a Waste Item from `targeted` to `collected` and makes it the Waste Item carried by the Robot. |
+| `WASTE-014` | Confirmed behavior | Subject to the collection Battery Level rules in `BATTERY-007` through `BATTERY-009`, successful collection atomically changes a Waste Item from `targeted` to `collected` and makes it the Waste Item carried by the Robot. |
 | `WASTE-015` | Confirmed invariant | A Waste Item can be deposited only when the Robot occupies the Collection Point's Position. |
 | `WASTE-016` | Confirmed invariant | A Waste Item can be deposited only at a Compatible Collection Point. |
 | `WASTE-017` | Confirmed behavior | Successful deposit atomically changes the carried Waste Item from `collected` to `deposited` and removes it from the Robot. |
@@ -105,12 +105,17 @@ The future handling policy for `unknown`, including whether a future policy make
 
 | ID | Status | Rule |
 | --- | --- | --- |
-| `BATTERY-001` | Confirmed invariant | Battery Level remains between zero and one hundred percent, inclusive. |
-| `BATTERY-002` | Confirmed behavior | Movement decreases Battery Level. |
-| `BATTERY-003` | Confirmed invariant | An action cannot begin when the Robot's Battery Level is insufficient for that action. |
-| `BATTERY-004` | Confirmed behavior | Insufficient Battery Level for an attempted action creates a Required Incident. |
+| `BATTERY-001` | Confirmed invariant | Battery Level is an integer percentage from zero through one hundred, inclusive, and never becomes negative. A Battery Level of `0%` means that no energy is available for an action requiring positive Battery Level. |
+| `BATTERY-002` | Confirmed behavior | One successful valid orthogonal movement step along an already validated Route atomically changes the Robot's current Position to the next Position in that Route and decreases Battery Level by exactly one percentage point. |
+| `BATTERY-003` | Confirmed invariant | An action cannot begin when the Robot's Battery Level is insufficient for that action. Concrete sufficiency is defined for movement and collection only; sufficiency for other actions remains deferred. |
+| `BATTERY-004` | Confirmed behavior | Insufficient Battery Level for an attempted action creates a Required Incident with the canonical concern `insufficient battery`. The Incident occurrence remains available for application reporting under `INCIDENT-002`. |
+| `BATTERY-005` | Confirmed invariant | A movement step may begin only when the Robot's Battery Level is at least `1%`. |
+| `BATTERY-006` | Confirmed behavior | When movement is attempted at `0%` Battery Level, the movement step does not begin, the Robot's Position and Battery Level remain unchanged, and the Required Incident is created under `BATTERY-004`. |
+| `BATTERY-007` | Confirmed invariant | Collection may begin only when the Robot's Battery Level is at least `1%`. |
+| `BATTERY-008` | Confirmed behavior | Successful collection consumes no Battery Level in the current MVP. |
+| `BATTERY-009` | Confirmed behavior | When collection is attempted at `0%` Battery Level, collection does not begin, the Robot and Waste Item remain unchanged, and the Required Incident is created under `BATTERY-004`. |
 
-These rules are confirmed policy commitments, but concrete example values cannot be specified until action-specific battery requirements, consumption values, and thresholds are decided. The Mission State after insufficient Battery Level prevents an action is also deferred. No autonomous charging behavior is assumed.
+These rules define concrete Battery Level sufficiency and consumption only for movement and collection. Battery Level sufficiency and consumption for deposit, classification, targeting, Mission control, charging, and other actions remain deferred. Battery degradation, health, voltage, capacity units, and time-based consumption are not defined. The Mission State after insufficient Battery Level prevents an action is also deferred. No autonomous charging behavior is assumed.
 
 ## Pause, Resume and Cancellation Rules
 
@@ -130,10 +135,10 @@ Handling of Collected Waste after cancellation and the Robot Operational State a
 | ID | Status | Rule |
 | --- | --- | --- |
 | `INCIDENT-001` | Confirmed behavior | A Processable Waste Item changing to `unreachable` under `WASTE-009` creates the corresponding Required Incident. |
-| `INCIDENT-002` | Confirmed behavior | Every Required Incident created under `INCIDENT-001` or `BATTERY-004` is reported to the Operator. |
+| `INCIDENT-002` | Confirmed behavior | Every Required Incident created under `INCIDENT-001` or `BATTERY-004` is reported to the Operator after its occurrence has been recorded and made available for application reporting. |
 | `INCIDENT-003` | Confirmed invariant | A Cleaning Mission cannot become `failed` solely because a Processable Waste Item is `unreachable`. |
 
-Insufficient Battery Level creates a Required Incident under `BATTERY-004`; this section does not define that behavior again. The `failed` Mission State remains documented, but its conditions and exact transition policy are deferred. No Incident lifecycle is defined. Completion effects of future Incident types that are not Required Incidents under current rules remain deferred.
+Insufficient Battery Level creates a Required Incident under `BATTERY-004`; this section does not define that behavior again. Incident creation and reporting are distinct: `BATTERY-004` owns creation and availability of the occurrence, while `INCIDENT-002` requires its later reporting. The technical reporting mechanism remains deferred. The `failed` Mission State remains documented, but its conditions and exact transition policy are deferred. No Incident lifecycle is defined. Completion effects of future Incident types that are not Required Incidents under current rules remain deferred.
 
 ## Mission Completion Rules
 
@@ -169,9 +174,8 @@ Robot and Cleaning Mission are identity-bearing domain entities. Domain objects 
 ## Intentionally Deferred Domain Decisions
 
 - Future Unknown Waste handling policy and the effect of any future policy on completion. Under the current MVP rule, Unknown Waste is not Processable Waste.
-- Exact battery-consumption values.
-- Minimum safe Battery Level thresholds.
-- Battery Level sufficient for each action.
+- Battery Level sufficiency and consumption for actions other than movement and collection, including deposit, classification, targeting, Mission control, and charging.
+- Battery degradation, health, voltage, capacity units, and time-based consumption.
 - Mission State after insufficient Battery Level prevents an action.
 - Charging transitions and behavior.
 - Collection Point capacity.
@@ -186,7 +190,7 @@ Robot and Cleaning Mission are identity-bearing domain entities. Domain objects 
 - Robot Operational State, carried-Waste behavior, and other lifecycle effects of terminal transitions beyond the confirmed association clearing rule in `MISSION-016`.
 - Future reconsideration policy for Unreachable Waste.
 - Completion effects of future Incident types that are not Required Incidents under current rules.
-- Whether Incidents need lifecycle states.
+- Incident identity, severity, lifecycle, persistence, transport, filtering, delivery, and the technical reporting mechanism.
 - Exact Mission Progress calculation and presentation.
 - Telemetry formatting, filtering, emission frequency, transport, delivery, serialization, and persistence.
 
@@ -195,9 +199,8 @@ The current-Mission behavior for Unreachable Waste is defined authoritatively by
 ## Questions Requiring Future Product Decisions
 
 - How should Unknown Waste be handled under a future policy, and how would that policy affect completion?
-- What Battery Level does each action consume?
-- Is there a minimum safe Battery Level?
-- What Battery Level is sufficient for each action before it may begin?
+- What Battery Level sufficiency and consumption rules apply to actions other than movement and collection, including deposit?
+- Should battery degradation, health, voltage, capacity units, or time-based consumption ever enter product scope?
 - What Mission State follows when insufficient Battery Level prevents an action?
 - Which transitions enter and leave `charging`, and what occurs while the Robot is charging?
 - Does a Collection Point have a capacity, and what happens when that capacity is reached?
@@ -211,6 +214,6 @@ The current-Mission behavior for Unreachable Waste is defined authoritatively by
 - Which conditions cause the Mission State to become `failed`?
 - Can a future product decision allow Unreachable Waste to be reconsidered during the same Cleaning Mission, and under what conditions?
 - How would future Incident types that are not Required Incidents under current rules affect completion?
-- Does an Incident need lifecycle states?
+- Does an Incident need identity, severity, lifecycle, persistence, filtering, or other currently deferred characteristics?
 - How is Mission Progress calculated and presented?
 - How is telemetry formatted and filtered, how frequently is it emitted, and how is it transported, delivered, serialized, and persisted?

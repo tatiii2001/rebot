@@ -76,7 +76,7 @@ The optional Cleaning Mission Identity recorded by a Robot for the one Active Mi
 
 ### Battery Level
 
-The Robot's remaining battery expressed as a percentage from zero through one hundred. Movement decreases Battery Level, and no action may begin without sufficient battery for that action.
+The Robot's remaining battery expressed as an integer percentage from `0` through `100`, inclusive. A Battery Level of `0%` means that no energy is available for an action requiring positive Battery Level. One valid orthogonal movement step requires at least `1%` and consumes exactly one percentage point. Collection requires at least `1%` but does not consume Battery Level in the current MVP. Battery Level never becomes negative. Sufficiency and consumption for other actions remain unresolved.
 
 ### Robot Operational State
 
@@ -186,11 +186,11 @@ Observable information supplied to the MVP Control Center. It includes the Simul
 
 ### Incident
 
-A condition relevant to mission execution whose occurrence is recorded and reported to the Operator. Unreachable Waste and insufficient Battery Level for an attempted action are currently confirmed conditions that produce Incidents. Recording and reporting an Incident do not define Incident lifecycle states.
+A condition relevant to mission execution whose occurrence is recorded and reported to the Operator. Unreachable Waste and insufficient Battery Level for an attempted action are currently confirmed conditions that produce Incidents. The canonical concern for an Incident caused by insufficient Battery Level is `insufficient battery`. Recording an Incident occurrence and later reporting it are distinct requirements; neither defines Incident lifecycle states.
 
 ### Required Incident
 
-An Incident that a confirmed rule requires to be created and that must be reported to the Operator when its documented triggering condition occurs. Currently confirmed triggering conditions are Unreachable Waste and insufficient Battery Level for an attempted action. A Required Incident has no lifecycle states.
+An Incident that a confirmed rule requires to be created and that must be reported to the Operator when its documented triggering condition occurs. Currently confirmed triggering conditions are Unreachable Waste and insufficient Battery Level for an attempted action. A created Required Incident remains available for the application to report; the technical reporting mechanism is not a domain-language concern. A Required Incident has no lifecycle states.
 
 ## Preferred and Discouraged Terminology
 
@@ -210,7 +210,8 @@ The preferred terms below are canonical. Alternatives may appear in ordinary exp
 The vocabulary does not resolve the following matters:
 
 - The future handling policy for Unknown Waste and how a future policy could affect completion. Under the current MVP rule, Unknown Waste is not Processable Waste.
-- Exact Battery Level consumption values, minimum safe thresholds, and the Battery Level sufficient for each action.
+- Battery Level sufficiency and consumption for actions other than movement and collection, including deposit.
+- Battery degradation, health, voltage, capacity units, and time-based consumption.
 - The Mission State after insufficient Battery Level prevents an action.
 - Transitions into or out of `charging` and behavior while charging.
 - Collection Point capacity.
@@ -218,7 +219,7 @@ The vocabulary does not resolve the following matters:
 - The exact Route-planning algorithm and dynamic-Obstacle behavior.
 - What happens when a Collection Point cannot be reached, including whether the Unreachable Waste concept applies.
 - Completion effects of any future Incident types that are not Required Incidents under current rules.
-- Whether Incidents need lifecycle states.
+- Incident identity, severity, lifecycle, persistence, transport, filtering, delivery, and the technical reporting mechanism.
 - The exact calculation and presentation of Mission Progress.
 - Telemetry formatting, filtering, emission frequency, transport, delivery, serialization, and persistence.
 - Handling of Collected Waste after cancellation.

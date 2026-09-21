@@ -39,7 +39,7 @@ The primary actor is the **Operator**, who starts, pauses, resumes, or cancels a
 - Deterministic classification into the MVP Processable Waste Categories plastic, paper, metal, glass, and organic, with `unknown` as an allowed classification outcome that is currently non-processable.
 - Compatible collection points.
 - Route calculation that avoids blocked positions.
-- Movement and battery consumption.
+- Movement along an already validated Route, with each valid orthogonal step consuming exactly one Battery Level percentage point.
 - Collection and deposit of one waste item at a time.
 - Mission start, pause, resume, and cancel.
 - Mission progress and final result.
@@ -84,8 +84,10 @@ The MVP Processable Waste Categories are plastic, paper, metal, glass, and organ
 - A robot cannot have two active missions.
 - A robot can carry only one waste item.
 - A robot cannot move through blocked positions.
-- Movement consumes battery.
-- A robot cannot perform an action without sufficient battery.
+- One valid orthogonal movement step requires at least `1%` Battery Level and atomically changes the Robot's Position to the next Route Position while consuming exactly one percentage point.
+- Collection requires at least `1%` Battery Level and consumes no Battery Level in the current MVP.
+- At `0%` Battery Level, an attempted movement step does not begin and leaves Robot Position and Battery Level unchanged; an attempted collection does not begin and leaves the participating Robot and Waste Item unchanged. Either attempt creates a Required Incident with the canonical concern `insufficient battery`.
+- A robot cannot perform an action without sufficient Battery Level for that action; concrete sufficiency and consumption for actions other than movement and collection remain deferred.
 - Waste can only be collected from the robot's current position.
 - Waste can only be deposited at the robot's current position.
 - A collection point must accept the waste category before normal deposit can occur under the agreed handling rules.
@@ -128,8 +130,8 @@ The MVP web control center displays the simulated environment and lets the opera
 
 ## Known Decisions Intentionally Deferred
 
-- Exact battery-consumption values.
-- Minimum safe battery thresholds.
+- Battery Level sufficiency and consumption for actions other than movement and collection, including deposit.
+- Battery degradation, health, voltage, capacity units, and time-based consumption.
 - Charging behavior.
 - Collection-point capacity.
 - Waste-classification confidence.

@@ -2,9 +2,11 @@ import pytest
 from pytest_bdd import given, scenario, then, when
 
 from rebot.application.create_cleaning_mission import create_cleaning_mission
+from rebot.domain.battery_level import BatteryLevel
 from rebot.domain.cleaning_mission import CleaningMission, MissionState
 from rebot.domain.identity import CleaningMissionIdentity, RobotIdentity
 from rebot.domain.mission_assignment_rejection import MissionAssignmentRejection
+from rebot.domain.position import Position
 from rebot.domain.robot import Robot, RobotOperationalState
 
 
@@ -38,7 +40,7 @@ def test_reject_another_active_mission_for_the_same_robot() -> None:
 
 @given("an available Robot records no Current Active Mission")
 def available_robot(creation_context: CreationContext) -> None:
-    creation_context.robot = Robot(RobotIdentity("robot-1"))
+    creation_context.robot = Robot(RobotIdentity("robot-1"), Position(0, 0), BatteryLevel(100))
     assert creation_context.robot.operational_state is RobotOperationalState.AVAILABLE
     assert creation_context.robot.current_active_mission_identity is None
 
@@ -96,7 +98,7 @@ def cleaning_mission_and_robot_are_reciprocal(creation_context: CreationContext)
 
 @given('an existing Cleaning Mission has Mission State "pending"')
 def existing_pending_mission(creation_context: CreationContext) -> None:
-    creation_context.robot = Robot(RobotIdentity("robot-1"))
+    creation_context.robot = Robot(RobotIdentity("robot-1"), Position(0, 0), BatteryLevel(100))
     result = create_cleaning_mission(CleaningMissionIdentity("mission-1"), creation_context.robot)
     assert isinstance(result, CleaningMission)
     creation_context.existing_mission = result

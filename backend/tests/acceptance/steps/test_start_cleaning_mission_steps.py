@@ -3,9 +3,11 @@ from pytest_bdd import given, scenario, then, when
 
 from rebot.application.create_cleaning_mission import create_cleaning_mission
 from rebot.application.start_cleaning_mission import start_cleaning_mission
+from rebot.domain.battery_level import BatteryLevel
 from rebot.domain.cleaning_mission import CleaningMission, MissionState
 from rebot.domain.identity import CleaningMissionIdentity, RobotIdentity
 from rebot.domain.mission_start_rejection import MissionStartRejection
+from rebot.domain.position import Position
 from rebot.domain.robot import Robot, RobotOperationalState
 
 
@@ -52,7 +54,7 @@ def test_start_a_pending_cleaning_mission_with_a_non_available_assigned_robot() 
 def existing_pending_mission(start_context: StartContext) -> None:
     start_context.robot_identity = RobotIdentity("robot-1")
     start_context.mission_identity = CleaningMissionIdentity("mission-1")
-    start_context.robot = Robot(start_context.robot_identity)
+    start_context.robot = Robot(start_context.robot_identity, Position(0, 0), BatteryLevel(100))
     mission = create_cleaning_mission(start_context.mission_identity, start_context.robot)
     assert isinstance(mission, CleaningMission)
     start_context.mission = mission
@@ -72,7 +74,9 @@ def assigned_robot_is_available(start_context: StartContext) -> None:
 def assigned_robot_is_out_of_service(start_context: StartContext) -> None:
     assert start_context.robot_identity is not None
     assert start_context.mission_identity is not None
-    start_context.robot = Robot.out_of_service(start_context.robot_identity)
+    start_context.robot = Robot.out_of_service(
+        start_context.robot_identity, Position(0, 0), BatteryLevel(100)
+    )
     mission = create_cleaning_mission(start_context.mission_identity, start_context.robot)
     assert isinstance(mission, CleaningMission)
     start_context.mission = mission
