@@ -58,16 +58,22 @@ function StatusValue({ value }: { readonly value: string }) {
 function ControlCenterScreen({ controlCenter }: { readonly controlCenter: ControlCenter }) {
   const [snapshot, setSnapshot] = useState(() => controlCenter.getSnapshot());
   const collectButtonRef = useRef<HTMLButtonElement>(null);
+  const depositButtonRef = useRef<HTMLButtonElement>(null);
   const isRunning = snapshot.missionState === "running";
   const isClassified = snapshot.wasteHandling?.lifecycle === "classified";
   const isTargeted = snapshot.wasteHandling?.lifecycle === "targeted";
   const isCollected = snapshot.wasteHandling?.lifecycle === "collected";
+  const isDeposited = snapshot.wasteHandling?.lifecycle === "deposited";
   const isRouteAvailable = snapshot.routePreviewState === "ready";
   const isRouteComplete = snapshot.routePreviewState === "complete";
+  const isDepositRoute = snapshot.routePurpose === "to-collection-point";
+  const atCollectionPoint = snapshot.robotPosition.column === collectionPoint.column
+    && snapshot.robotPosition.row === collectionPoint.row;
   const robotHasReachedTarget = isTargeted
     && snapshot.robotPosition.column === snapshot.selectedTarget?.position.column
     && snapshot.robotPosition.row === snapshot.selectedTarget?.position.row;
   const canCollect = isTargeted && isRouteComplete && robotHasReachedTarget;
+  const canDeposit = isCollected && isDepositRoute && isRouteComplete && atCollectionPoint;
 
   useEffect(() => {
     if (snapshot.routePreviewState !== "playing") {
@@ -87,6 +93,12 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
     }
   }, [canCollect]);
 
+  useEffect(() => {
+    if (canDeposit) {
+      depositButtonRef.current?.focus();
+    }
+  }, [canDeposit]);
+
   function startMission() {
     setSnapshot(controlCenter.startMission());
   }
@@ -104,8 +116,19 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
     setSnapshot(controlCenter.collectPlasticWaste());
   }
 
-  const gridDescription = isCollected
-    ? "Environment grid with one Robot, three ground Waste Items, five Static Obstacles, and one Compatible Collection Point. Robot carries one plastic Waste Item at grid position 2, 2"
+  function playDepositRoute() {
+    const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    setSnapshot(controlCenter.playDepositRoute(prefersReducedMotion));
+  }
+
+  function depositPlasticWaste() {
+    setSnapshot(controlCenter.depositPlasticWaste());
+  }
+
+  const gridDescription = isDeposited
+    ? "Environment grid with one Robot, three ground Waste Items, five Static Obstacles, and one Compatible Collection Point. Deposited plastic Waste is at the Compatible Collection Point at grid position 8, 3"
+    : isCollected
+    ? `Environment grid with one Robot, three ground Waste Items, five Static Obstacles, and one Compatible Collection Point. Robot carries one plastic Waste Item at grid position ${snapshot.robotPosition.column}, ${snapshot.robotPosition.row}`
     : `Environment grid with one Robot, four Waste Items, five Static Obstacles, and one Compatible Collection Point${robotHasReachedTarget ? ". Robot and selected target occupy grid position 2, 2; the Waste Item remains targeted and uncollected" : ""}`;
 
   return (
@@ -135,7 +158,7 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
             </div>
           </div>
           <div aria-label={gridDescription} className="environment-grid">
-            {isTargeted && snapshot.routeFrames.map((position, index) => {
+            {(isTargeted || isCollected) && snapshot.routeFrames.map((position, index) => {
               const progress = index < snapshot.routeFrameIndex
                 ? "completed"
                 : index === snapshot.routeFrameIndex ? "current" : "remaining";
@@ -143,7 +166,7 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
             })}
             {obstacles.map((marker, index) => <GridMarker key={`obstacle-${index}`} marker={marker} />)}
             {wasteItems.map((marker) => {
-              if (isCollected && marker.column === 2 && marker.row === 2) {
+              if ((isCollected || isDeposited) && marker.column === 2 && marker.row === 2) {
                 return null;
               }
               const isSelectedTarget = marker.column === snapshot.selectedTarget?.position.column && marker.row === snapshot.selectedTarget.position.row;
@@ -153,8 +176,9 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
               return <GridMarker key={marker.label} marker={targetMarker} />;
             })}
             <GridMarker marker={collectionPoint} />
-            <GridMarker marker={{ ...robot, column: snapshot.robotPosition.column, row: snapshot.robotPosition.row, label: `Robot at grid position ${snapshot.robotPosition.column}, ${snapshot.robotPosition.row}` }} />
-            {isCollected && <GridMarker marker={{ className: "carried-waste", label: "Robot carrying one plastic Waste Item at grid position 2, 2", column: snapshot.robotPosition.column, row: snapshot.robotPosition.row }} />}
+            <GridMarker marker={{ ...robot, column: snapshot.robotPosition.column, row: snapshot.robotPosition.row, label: atCollectionPoint ? `Robot at Compatible Collection Point at grid position ${snapshot.robotPosition.column}, ${snapshot.robotPosition.row}${isCollected ? " carrying plastic Waste" : ""}` : `Robot at grid position ${snapshot.robotPosition.column}, ${snapshot.robotPosition.row}${isCollected ? " carrying plastic Waste" : ""}` }} />
+            {isCollected && <GridMarker marker={{ className: "carried-waste", label: `Robot carrying one plastic Waste Item at grid position ${snapshot.robotPosition.column}, ${snapshot.robotPosition.row}`, column: snapshot.robotPosition.column, row: snapshot.robotPosition.row }} />}
+            {isDeposited && <GridMarker marker={{ className: "deposited-waste", label: "Deposited plastic Waste at Compatible Collection Point at grid position 8, 3", column: collectionPoint.column, row: collectionPoint.row }} />}
           </div>
           <div aria-label="Environment legend" className="environment-legend">
             <span><i className="legend-icon robot-icon" aria-hidden="true" />Robot</span>
@@ -183,22 +207,24 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
             </button>
             {snapshot.wasteHandling && (
               <section aria-label="Waste handling status" className="waste-handling-status">
-                <p className="eyebrow">{isCollected ? "Collected Waste" : isTargeted ? "Targeted Waste" : "Classified Waste"}</p>
+                <p className="eyebrow">{isDeposited ? "Deposited Waste" : isCollected ? "Collected Waste" : isTargeted ? "Targeted Waste" : "Classified Waste"}</p>
                 <dl className="handling-list">
                   <div><dt>Category</dt><dd>Plastic</dd></div>
                   <div><dt>Processability</dt><dd>Processable</dd></div>
-                  <div><dt>Lifecycle</dt><dd className={isCollected ? "collected-state" : isTargeted ? "targeted-state" : "classified-state"}>{isCollected ? "Collected" : isTargeted ? "Targeted" : "Classified"}</dd></div>
-                  {isCollected ? <><div><dt>Carrying</dt><dd>Robot</dd></div><div><dt>Battery cost</dt><dd>0%</dd></div></> : <div><dt>Route</dt><dd>{isTargeted ? "Preview ready" : "Validated"}</dd></div>}
+                  <div><dt>Lifecycle</dt><dd className={isDeposited || isCollected ? "collected-state" : isTargeted ? "targeted-state" : "classified-state"}>{isDeposited ? "Deposited" : isCollected ? "Collected" : isTargeted ? "Targeted" : "Classified"}</dd></div>
+                  {isDeposited ? <><div><dt>Location</dt><dd>Collection point</dd></div><div><dt>Battery cost</dt><dd>0%</dd></div></> : isCollected ? <><div><dt>Carrying</dt><dd>Robot</dd></div><div><dt>Battery cost</dt><dd>0%</dd></div><div><dt>Deposit route</dt><dd>Validated</dd></div></> : <div><dt>Route</dt><dd>{isTargeted ? "Preview ready" : "Validated"}</dd></div>}
                 </dl>
               </section>
             )}
             {isClassified && <button className="target-button" onClick={targetPlasticWaste} type="button">Target plastic waste</button>}
             {isTargeted && <button className="target-button" disabled type="button">Plastic waste targeted</button>}
-            {(isTargeted || isCollected) && <button className="route-preview-button" disabled={!isRouteAvailable} onClick={playRoutePreview} type="button">
+            {isTargeted && <button className="route-preview-button" disabled={!isRouteAvailable} onClick={playRoutePreview} type="button">
               {isRouteComplete ? "Route preview complete" : "Play route preview"}
             </button>}
             {canCollect && <button className="collect-button" onClick={collectPlasticWaste} ref={collectButtonRef} type="button">Collect plastic waste</button>}
-            {isCollected && <p aria-live="polite" className="collection-result">Plastic waste collected</p>}
+            {isCollected && isDepositRoute && isRouteAvailable && <button className="route-preview-button" onClick={playDepositRoute} type="button">Play route to collection point</button>}
+            {canDeposit && <button className="collect-button" onClick={depositPlasticWaste} ref={depositButtonRef} type="button">Deposit plastic waste</button>}
+            {(isCollected || isDeposited) && <p aria-live="polite" className="collection-result">{isDeposited ? "Plastic waste deposited" : "Plastic waste collected"}</p>}
           </section>
 
           <section aria-labelledby="robot-heading" className="panel robot-panel">
@@ -217,7 +243,8 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
             <div aria-label={`Battery Level ${snapshot.batteryLevel}%`} aria-valuemax={100} aria-valuemin={0} aria-valuenow={snapshot.batteryLevel} className="battery-meter" role="meter">
               <span style={{ width: `${snapshot.batteryLevel}%` }} />
             </div>
-            <p aria-live="polite" className="current-task"><span>Current task</span>{snapshot.currentTask}</p>
+            <p className="current-task"><span>Current task</span>{snapshot.currentTask}</p>
+            <p className="sr-only" role="status">{snapshot.routePreviewState === "playing" && snapshot.routeFrameIndex === 0 ? snapshot.currentTask : canDeposit ? "Ready to deposit plastic waste" : isDeposited ? "Plastic waste deposited" : ""}</p>
           </section>
         </aside>
       </section>

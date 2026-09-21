@@ -35,6 +35,8 @@ button:focus-visible {
   outline-offset: 3px;
 }
 
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; clip-path: inset(50%); }
+
 .control-center-shell {
   width: min(1200px, calc(100% - 48px));
   margin: 0 auto;
@@ -116,6 +118,7 @@ h2 { margin-bottom: 0; font-size: 19px; letter-spacing: -.025em; }
 .carried-waste { z-index: 4; width: 22%; height: 22%; border: 2px solid #edffc5; background: var(--cyan); border-radius: 50%; box-shadow: 14px -13px 0 -3px var(--accent); }
 .collection-point { width: 60%; height: 60%; border: 3px solid var(--cyan); border-radius: 4px; background: repeating-linear-gradient(45deg, rgb(100 213 223 / 12%) 0 4px, transparent 4px 8px); }
 .collection-point::after { position: absolute; inset: 25%; content: ""; background: var(--cyan); border-radius: 1px; }
+.deposited-waste { z-index: 4; width: 26%; height: 26%; border: 2px solid #edffc5; background: var(--accent); border-radius: 50%; box-shadow: 0 0 0 3px rgb(200 243 107 / 20%); }
 
 .environment-legend { display: flex; flex-wrap: wrap; gap: 12px 18px; margin-top: 18px; color: var(--muted); font-size: 12px; }
 .environment-legend span { display: inline-flex; align-items: center; gap: 7px; }

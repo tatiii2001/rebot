@@ -1,7 +1,8 @@
 export type MissionState = "pending" | "running";
 export type RobotOperationalState = "available" | "executing mission";
 export type RoutePreviewState = "unavailable" | "ready" | "playing" | "complete";
-export type WasteLifecycle = "detected" | "classified" | "targeted" | "collected";
+export type WasteLifecycle = "detected" | "classified" | "targeted" | "collected" | "deposited";
+export type RoutePurpose = "to-waste" | "to-collection-point";
 
 export interface GridPosition {
   readonly column: number;
@@ -37,6 +38,7 @@ export interface ControlCenterSnapshot {
   readonly routeFrames: readonly GridPosition[];
   readonly routeFrameIndex: number;
   readonly routePreviewState: RoutePreviewState;
+  readonly routePurpose?: RoutePurpose;
 }
 
 export interface ControlCenter {
@@ -46,6 +48,8 @@ export interface ControlCenter {
   playRoutePreview(prefersReducedMotion: boolean): ControlCenterSnapshot;
   advanceRoutePreview(): ControlCenterSnapshot;
   collectPlasticWaste(): ControlCenterSnapshot;
+  playDepositRoute(prefersReducedMotion: boolean): ControlCenterSnapshot;
+  depositPlasticWaste(): ControlCenterSnapshot;
 }
 
 const plasticTarget: SelectedTarget = {
@@ -72,6 +76,21 @@ const routeFrames: readonly GridPosition[] = [
   { column: 2, row: 4 },
   { column: 2, row: 3 },
   { column: 2, row: 2 },
+];
+
+// Fixed route from the collected Waste at (2,2) to the existing Collection Point at (8,3).
+// Each frame after the origin consumes one Battery percentage point: 77% through 68%.
+const collectionPointRouteFrames: readonly GridPosition[] = [
+  { column: 2, row: 2 },
+  { column: 2, row: 3 },
+  { column: 2, row: 4 },
+  { column: 3, row: 4 },
+  { column: 4, row: 4 },
+  { column: 4, row: 3 },
+  { column: 5, row: 3 },
+  { column: 6, row: 3 },
+  { column: 7, row: 3 },
+  { column: 8, row: 3 },
 ];
 
 const initialSnapshot: ControlCenterSnapshot = {
@@ -146,13 +165,18 @@ export function createLocalControlCenter(): ControlCenter {
     advanceRoutePreview: () => {
       if (snapshot.routePreviewState === "playing") {
         const nextFrameIndex = snapshot.routeFrameIndex + 1;
-        const isComplete = nextFrameIndex === routeFrames.length - 1;
+        const isComplete = nextFrameIndex === snapshot.routeFrames.length - 1;
+        const isCollectionPointRoute = snapshot.routePurpose === "to-collection-point";
         snapshot = {
           ...snapshot,
           currentTask: isComplete
-            ? "Reached targeted plastic waste; ready to collect"
-            : `Following route to plastic waste: ${nextFrameIndex + 1} of ${routeFrames.length} positions`,
-          robotPosition: routeFrames[nextFrameIndex],
+            ? isCollectionPointRoute
+              ? "Ready to deposit plastic waste"
+              : "Reached targeted plastic waste; ready to collect"
+            : isCollectionPointRoute
+              ? `Moving collected plastic to collection point · step ${nextFrameIndex + 1} of ${snapshot.routeFrames.length}`
+              : `Following route to plastic waste: ${nextFrameIndex + 1} of ${snapshot.routeFrames.length} positions`,
+          robotPosition: snapshot.routeFrames[nextFrameIndex],
           batteryLevel: snapshot.batteryLevel - 1,
           routeFrameIndex: nextFrameIndex,
           routePreviewState: isComplete ? "complete" : "playing",
@@ -167,10 +191,47 @@ export function createLocalControlCenter(): ControlCenter {
       if (snapshot.wasteHandling?.lifecycle === "targeted" && snapshot.routePreviewState === "complete" && robotAtPlasticWaste) {
         snapshot = {
           ...snapshot,
-          currentTask: "Carrying plastic waste",
           wasteCollected: 1,
           wasteHandling: { ...snapshot.wasteHandling, lifecycle: "collected" },
           selectedTarget: undefined,
+          routeFrames: collectionPointRouteFrames,
+          routeFrameIndex: 0,
+          routePreviewState: "ready",
+          routePurpose: "to-collection-point",
+          currentTask: "Validated route available to collection point",
+        };
+      }
+
+      return snapshot;
+    },
+    playDepositRoute: (prefersReducedMotion) => {
+      if (snapshot.wasteHandling?.lifecycle === "collected" && snapshot.routePurpose === "to-collection-point" && snapshot.routePreviewState === "ready") {
+        const finalFrameIndex = collectionPointRouteFrames.length - 1;
+        snapshot = prefersReducedMotion
+          ? {
+              ...snapshot,
+              currentTask: "Ready to deposit plastic waste",
+              robotPosition: collectionPointRouteFrames[finalFrameIndex],
+              batteryLevel: snapshot.batteryLevel - finalFrameIndex,
+              routeFrameIndex: finalFrameIndex,
+              routePreviewState: "complete",
+            }
+          : {
+              ...snapshot,
+              currentTask: `Moving collected plastic to collection point · step 1 of ${collectionPointRouteFrames.length}`,
+              routePreviewState: "playing",
+            };
+      }
+
+      return snapshot;
+    },
+    depositPlasticWaste: () => {
+      const atCollectionPoint = snapshot.robotPosition.column === 8 && snapshot.robotPosition.row === 3;
+      if (snapshot.wasteHandling?.lifecycle === "collected" && snapshot.routePurpose === "to-collection-point" && snapshot.routePreviewState === "complete" && atCollectionPoint) {
+        snapshot = {
+          ...snapshot,
+          currentTask: "Plastic waste deposited",
+          wasteHandling: { ...snapshot.wasteHandling, lifecycle: "deposited" },
         };
       }
 
