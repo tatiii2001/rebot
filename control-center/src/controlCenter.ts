@@ -70,6 +70,7 @@ const routeFrames: readonly GridPosition[] = [
   { column: 2, row: 5 },
   { column: 2, row: 4 },
   { column: 2, row: 3 },
+  { column: 2, row: 2 },
 ];
 
 const initialSnapshot: ControlCenterSnapshot = {
@@ -124,18 +125,19 @@ export function createLocalControlCenter(): ControlCenter {
       if (snapshot.routePreviewState === "ready") {
         const finalFrameIndex = routeFrames.length - 1;
         snapshot = prefersReducedMotion
-          ? {
-              ...snapshot,
-              currentTask: "Ready to collect plastic waste",
-              robotPosition: routeFrames[finalFrameIndex],
-              routeFrameIndex: finalFrameIndex,
-              routePreviewState: "complete",
-            }
-          : {
-              ...snapshot,
-              currentTask: "Following route to plastic waste",
-              routePreviewState: "playing",
-            };
+            ? {
+                ...snapshot,
+                currentTask: "Reached targeted plastic waste; ready for a future collection action",
+                robotPosition: routeFrames[finalFrameIndex],
+                batteryLevel: initialSnapshot.batteryLevel - finalFrameIndex,
+                routeFrameIndex: finalFrameIndex,
+                routePreviewState: "complete",
+              }
+            : {
+                ...snapshot,
+                currentTask: `Following route to plastic waste: 1 of ${routeFrames.length} positions`,
+                routePreviewState: "playing",
+              };
       }
 
       return snapshot;
@@ -147,9 +149,10 @@ export function createLocalControlCenter(): ControlCenter {
         snapshot = {
           ...snapshot,
           currentTask: isComplete
-            ? "Ready to collect plastic waste"
-            : "Following route to plastic waste",
+            ? "Reached targeted plastic waste; ready for a future collection action"
+            : `Following route to plastic waste: ${nextFrameIndex + 1} of ${routeFrames.length} positions`,
           robotPosition: routeFrames[nextFrameIndex],
+          batteryLevel: snapshot.batteryLevel - 1,
           routeFrameIndex: nextFrameIndex,
           routePreviewState: isComplete ? "complete" : "playing",
         };

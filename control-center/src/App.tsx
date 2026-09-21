@@ -62,6 +62,9 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
   const isTargeted = snapshot.wasteHandling?.lifecycle === "targeted";
   const isRouteAvailable = snapshot.routePreviewState === "ready";
   const isRouteComplete = snapshot.routePreviewState === "complete";
+  const robotHasReachedTarget = isTargeted
+    && snapshot.robotPosition.column === snapshot.selectedTarget?.position.column
+    && snapshot.robotPosition.row === snapshot.selectedTarget?.position.row;
 
   useEffect(() => {
     if (snapshot.routePreviewState !== "playing") {
@@ -114,7 +117,7 @@ function ControlCenterScreen({ controlCenter }: { readonly controlCenter: Contro
               <span className="grid-status">Grid online</span>
             </div>
           </div>
-          <div aria-label="Environment grid with one Robot, four Waste Items, five Static Obstacles, and one Compatible Collection Point" className="environment-grid">
+          <div aria-label={`Environment grid with one Robot, four Waste Items, five Static Obstacles, and one Compatible Collection Point${robotHasReachedTarget ? ". Robot and selected target occupy grid position 2, 2; the Waste Item remains targeted and uncollected" : ""}`} className="environment-grid">
             {isTargeted && snapshot.routeFrames.map((position, index) => {
               const progress = index < snapshot.routeFrameIndex
                 ? "completed"
