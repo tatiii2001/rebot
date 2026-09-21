@@ -99,7 +99,11 @@ The future handling policy for `unknown`, including whether a future policy make
 | `WASTE-014` | Confirmed behavior | Subject to the collection Battery Level rules in `BATTERY-007` through `BATTERY-009`, successful collection atomically changes a Waste Item from `targeted` to `collected` and makes it the Waste Item carried by the Robot. |
 | `WASTE-015` | Confirmed invariant | A Waste Item can be deposited only when the Robot occupies the Collection Point's Position. |
 | `WASTE-016` | Confirmed invariant | A Waste Item can be deposited only at a Compatible Collection Point. |
-| `WASTE-017` | Confirmed behavior | Successful deposit atomically changes the carried Waste Item from `collected` to `deposited` and removes it from the Robot. |
+| `WASTE-017` | Confirmed behavior | Subject to the deposit Battery Level rules in `BATTERY-010` through `BATTERY-012`, successful deposit atomically changes the carried Waste Item from `collected` to `deposited`, changes that Waste Item's Position to the Compatible Collection Point's Position, and removes it from the Robot. The Robot's Position, Battery Level, Robot Operational State `executing mission`, the Cleaning Mission's Mission State `running`, both identities, and their reciprocal active association remain unchanged. |
+| `WASTE-018` | Confirmed invariant | Deposit may begin only while the Cleaning Mission has Mission State `running`, its Assigned Robot has Robot Operational State `executing mission`, the Cleaning Mission's Assigned Robot identity and the Robot's Current Active Mission identity are reciprocal, and that Robot carries a Waste Item in lifecycle state `collected`. |
+| `WASTE-019` | Confirmed behavior | When any non-battery deposit precondition in `WASTE-015`, `WASTE-016`, or `WASTE-018` is unsatisfied, deposit does not begin and all participating Robot, Waste Item, Collection Point, and Cleaning Mission state remains unchanged. The attempt creates no Incident, does not change the Cleaning Mission to `failed`, and introduces no rejection type, reason taxonomy, error code, or exception contract. |
+
+Successful deposit under `WASTE-017` alone does not complete the Cleaning Mission and does not calculate or update a concrete Mission Progress representation. Mission completion remains the separate behavior defined by `MISSION-008`. Collection Point capacity, stored inventory, and identity remain deferred.
 
 ## Battery Rules
 
@@ -107,15 +111,18 @@ The future handling policy for `unknown`, including whether a future policy make
 | --- | --- | --- |
 | `BATTERY-001` | Confirmed invariant | Battery Level is an integer percentage from zero through one hundred, inclusive, and never becomes negative. A Battery Level of `0%` means that no energy is available for an action requiring positive Battery Level. |
 | `BATTERY-002` | Confirmed behavior | One successful valid orthogonal movement step along an already validated Route atomically changes the Robot's current Position to the next Position in that Route and decreases Battery Level by exactly one percentage point. |
-| `BATTERY-003` | Confirmed invariant | An action cannot begin when the Robot's Battery Level is insufficient for that action. Concrete sufficiency is defined for movement and collection only; sufficiency for other actions remains deferred. |
+| `BATTERY-003` | Confirmed invariant | An action cannot begin when the Robot's Battery Level is insufficient for that action. Concrete sufficiency is defined for movement, collection, and deposit only; sufficiency for other actions remains deferred. |
 | `BATTERY-004` | Confirmed behavior | Insufficient Battery Level for an attempted action creates a Required Incident with the canonical concern `insufficient battery`. The Incident occurrence remains available for application reporting under `INCIDENT-002`. |
 | `BATTERY-005` | Confirmed invariant | A movement step may begin only when the Robot's Battery Level is at least `1%`. |
 | `BATTERY-006` | Confirmed behavior | When movement is attempted at `0%` Battery Level, the movement step does not begin, the Robot's Position and Battery Level remain unchanged, and the Required Incident is created under `BATTERY-004`. |
 | `BATTERY-007` | Confirmed invariant | Collection may begin only when the Robot's Battery Level is at least `1%`. |
 | `BATTERY-008` | Confirmed behavior | Successful collection consumes no Battery Level in the current MVP. |
 | `BATTERY-009` | Confirmed behavior | When collection is attempted at `0%` Battery Level, collection does not begin, the Robot and Waste Item remain unchanged, and the Required Incident is created under `BATTERY-004`. |
+| `BATTERY-010` | Confirmed invariant | Deposit may begin only when the Robot's Battery Level is at least `1%`. |
+| `BATTERY-011` | Confirmed behavior | Successful deposit consumes no Battery Level in the current MVP. |
+| `BATTERY-012` | Confirmed behavior | When deposit is attempted at `0%` Battery Level, deposit does not begin; the participating Robot, carried Waste Item, Compatible Collection Point, Cleaning Mission, Position, carrying state, and Battery Level remain unchanged; and exactly one Required Incident is created under `BATTERY-004` and made available for later application reporting under `INCIDENT-002`. The deposit domain operation does not itself report the Incident. |
 
-These rules define concrete Battery Level sufficiency and consumption only for movement and collection. Battery Level sufficiency and consumption for deposit, classification, targeting, Mission control, charging, and other actions remain deferred. Battery degradation, health, voltage, capacity units, and time-based consumption are not defined. The Mission State after insufficient Battery Level prevents an action is also deferred. No autonomous charging behavior is assumed.
+These rules define concrete Battery Level sufficiency and consumption only for movement, collection, and deposit. Battery Level sufficiency and consumption for classification, targeting, Mission control, charging, and other actions remain deferred. Battery degradation, health, voltage, capacity units, and time-based consumption are not defined. The Mission State after insufficient Battery Level prevents an action other than deposit is also deferred. No autonomous charging behavior is assumed.
 
 ## Pause, Resume and Cancellation Rules
 
@@ -138,7 +145,7 @@ Handling of Collected Waste after cancellation and the Robot Operational State a
 | `INCIDENT-002` | Confirmed behavior | Every Required Incident created under `INCIDENT-001` or `BATTERY-004` is reported to the Operator after its occurrence has been recorded and made available for application reporting. |
 | `INCIDENT-003` | Confirmed invariant | A Cleaning Mission cannot become `failed` solely because a Processable Waste Item is `unreachable`. |
 
-Insufficient Battery Level creates a Required Incident under `BATTERY-004`; this section does not define that behavior again. Incident creation and reporting are distinct: `BATTERY-004` owns creation and availability of the occurrence, while `INCIDENT-002` requires its later reporting. The technical reporting mechanism remains deferred. The `failed` Mission State remains documented, but its conditions and exact transition policy are deferred. No Incident lifecycle is defined. Completion effects of future Incident types that are not Required Incidents under current rules remain deferred.
+Insufficient Battery Level creates a Required Incident under `BATTERY-004`; this section does not define that behavior again. Incident creation and reporting are distinct: `BATTERY-004` owns creation and availability of the occurrence, while `INCIDENT-002` requires its later reporting. Movement, collection, and deposit domain operations that create a Required Incident do not themselves report it. The technical reporting mechanism remains deferred. The `failed` Mission State remains documented, but its conditions and exact transition policy are deferred. No Incident lifecycle is defined. Completion effects of future Incident types that are not Required Incidents under current rules remain deferred.
 
 ## Mission Completion Rules
 
@@ -174,11 +181,11 @@ Robot and Cleaning Mission are identity-bearing domain entities. Domain objects 
 ## Intentionally Deferred Domain Decisions
 
 - Future Unknown Waste handling policy and the effect of any future policy on completion. Under the current MVP rule, Unknown Waste is not Processable Waste.
-- Battery Level sufficiency and consumption for actions other than movement and collection, including deposit, classification, targeting, Mission control, and charging.
+- Battery Level sufficiency and consumption for actions other than movement, collection, and deposit, including classification, targeting, Mission control, and charging.
 - Battery degradation, health, voltage, capacity units, and time-based consumption.
-- Mission State after insufficient Battery Level prevents an action.
+- Mission State after insufficient Battery Level prevents an action other than deposit.
 - Charging transitions and behavior.
-- Collection Point capacity.
+- Collection Point capacity, stored inventory, and identity.
 - Classification confidence.
 - Exact Route-planning algorithm.
 - Route cost and tie-breaking policy.
@@ -199,11 +206,11 @@ The current-Mission behavior for Unreachable Waste is defined authoritatively by
 ## Questions Requiring Future Product Decisions
 
 - How should Unknown Waste be handled under a future policy, and how would that policy affect completion?
-- What Battery Level sufficiency and consumption rules apply to actions other than movement and collection, including deposit?
+- What Battery Level sufficiency and consumption rules apply to actions other than movement, collection, and deposit?
 - Should battery degradation, health, voltage, capacity units, or time-based consumption ever enter product scope?
-- What Mission State follows when insufficient Battery Level prevents an action?
+- What Mission State follows when insufficient Battery Level prevents an action other than deposit?
 - Which transitions enter and leave `charging`, and what occurs while the Robot is charging?
-- Does a Collection Point have a capacity, and what happens when that capacity is reached?
+- Does a Collection Point have a capacity, stored inventory, or identity, and what behavior would those concepts require?
 - Is classification confidence represented, and if so, how does it affect classification or processability?
 - Which exact algorithm plans a Route?
 - How are Route cost and tie-breaking determined?

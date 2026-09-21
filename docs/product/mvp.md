@@ -40,7 +40,7 @@ The primary actor is the **Operator**, who starts, pauses, resumes, or cancels a
 - Compatible collection points.
 - Route calculation that avoids blocked positions.
 - Movement along an already validated Route, with each valid orthogonal step consuming exactly one Battery Level percentage point.
-- Collection and deposit of one waste item at a time.
+- Collection and deposit of one Waste Item at a time.
 - Mission start, pause, resume, and cancel.
 - Mission progress and final result.
 - A web control center through which the operator starts, pauses, resumes, and cancels missions and observes the simulated environment, robot position, battery, robot and mission states, mission progress, waste lifecycle changes, incidents, and the final mission result.
@@ -86,11 +86,16 @@ The MVP Processable Waste Categories are plastic, paper, metal, glass, and organ
 - A robot cannot move through blocked positions.
 - One valid orthogonal movement step requires at least `1%` Battery Level and atomically changes the Robot's Position to the next Route Position while consuming exactly one percentage point.
 - Collection requires at least `1%` Battery Level and consumes no Battery Level in the current MVP.
-- At `0%` Battery Level, an attempted movement step does not begin and leaves Robot Position and Battery Level unchanged; an attempted collection does not begin and leaves the participating Robot and Waste Item unchanged. Either attempt creates a Required Incident with the canonical concern `insufficient battery`.
-- A robot cannot perform an action without sufficient Battery Level for that action; concrete sufficiency and consumption for actions other than movement and collection remain deferred.
+- Deposit requires at least `1%` Battery Level and consumes no Battery Level in the current MVP.
+- At `0%` Battery Level, an attempted movement step does not begin and leaves Robot Position and Battery Level unchanged; an attempted collection does not begin and leaves the participating Robot and Waste Item unchanged; and an attempted deposit does not begin and leaves the participating Robot, carried Waste Item, Compatible Collection Point, Cleaning Mission, Position, carrying state, and Battery Level unchanged. Each movement or collection attempt creates a Required Incident with the canonical concern `insufficient battery`. Each deposit attempt creates exactly one such Required Incident and makes it available for later application reporting; the deposit domain operation does not itself report the Incident.
+- A Robot cannot perform an action without sufficient Battery Level for that action; concrete sufficiency and consumption for actions other than movement, collection, and deposit remain deferred.
 - Waste can only be collected from the robot's current position.
 - Waste can only be deposited at the robot's current position.
 - A collection point must accept the waste category before normal deposit can occur under the agreed handling rules.
+- Deposit may begin only while the Cleaning Mission is `running`, its Assigned Robot is `executing mission`, their active Mission identities are reciprocal, and that Robot carries a Waste Item in lifecycle state `collected`.
+- Successful deposit atomically changes the carried Waste Item from `collected` to `deposited`, places it at the Compatible Collection Point's Position, and removes it from the Robot. The Robot's Position, Battery Level, Robot Operational State `executing mission`, the Cleaning Mission's Mission State `running`, both identities, and their active association remain unchanged.
+- When a non-battery deposit precondition is unsatisfied, deposit does not begin, all participating state remains unchanged, no Incident is created, and the Cleaning Mission does not become `failed`. No deposit rejection type, reason taxonomy, error code, or exception contract is defined.
+- Successful deposit alone does not complete the Cleaning Mission or calculate or update a concrete Mission Progress representation. Mission completion is evaluated separately.
 - Deposited waste cannot be collected again.
 - A terminal mission cannot be modified.
 - Unreachable waste creates an incident.
@@ -130,10 +135,10 @@ The MVP web control center displays the simulated environment and lets the opera
 
 ## Known Decisions Intentionally Deferred
 
-- Battery Level sufficiency and consumption for actions other than movement and collection, including deposit.
+- Battery Level sufficiency and consumption for actions other than movement, collection, and deposit.
 - Battery degradation, health, voltage, capacity units, and time-based consumption.
 - Charging behavior.
-- Collection-point capacity.
+- Collection Point capacity, stored inventory, and identity.
 - Waste-classification confidence.
 - Handling policy for `unknown` waste.
 - Exact route-planning algorithm.

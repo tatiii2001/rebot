@@ -76,7 +76,7 @@ The optional Cleaning Mission Identity recorded by a Robot for the one Active Mi
 
 ### Battery Level
 
-The Robot's remaining battery expressed as an integer percentage from `0` through `100`, inclusive. A Battery Level of `0%` means that no energy is available for an action requiring positive Battery Level. One valid orthogonal movement step requires at least `1%` and consumes exactly one percentage point. Collection requires at least `1%` but does not consume Battery Level in the current MVP. Battery Level never becomes negative. Sufficiency and consumption for other actions remain unresolved.
+The Robot's remaining battery expressed as an integer percentage from `0` through `100`, inclusive. A Battery Level of `0%` means that no energy is available for an action requiring positive Battery Level. One valid orthogonal movement step requires at least `1%` and consumes exactly one percentage point. Collection and deposit each require at least `1%` but consume no Battery Level in the current MVP. Battery Level never becomes negative. Sufficiency and consumption for other actions remain unresolved.
 
 ### Robot Operational State
 
@@ -132,7 +132,7 @@ A Waste Item whose lifecycle state changed from `targeted` to `collected` throug
 
 ### Deposited Waste
 
-A Waste Item successfully placed at a Compatible Collection Point and no longer carried by the Robot.
+A Waste Item whose lifecycle state changed from `collected` to `deposited` through successful deposit, whose Position is the Compatible Collection Point's Position, and that is no longer carried by the Robot. Successful deposit alone does not complete the Cleaning Mission or calculate or update a concrete Mission Progress representation.
 
 ### Unreachable Waste
 
@@ -173,7 +173,7 @@ The Active Mission states are `pending`, `running`, and `paused`. The Terminal M
 - `classified`: assigned a Waste Category.
 - `targeted`: selected for collection after processability is established.
 - `collected`: picked up while the Robot occupies the Waste Item's Position and carried by the Robot.
-- `deposited`: placed at a Compatible Collection Point.
+- `deposited`: placed at the Compatible Collection Point's Position and no longer carried by the Robot.
 - `unreachable`: no Route satisfying the minimum Route semantics exists from the Robot's current Position to the Processable Waste Item's Position, so the item is not targeted, collected, or deposited during the current Cleaning Mission.
 
 The documented normal progression is `detected` to `classified` to `targeted` to `collected` to `deposited`. After classification establishes that an item is Processable Waste, `unreachable` is an alternative to `targeted` when no Route to that item exists. No additional lifecycle state is implied.
@@ -210,11 +210,11 @@ The preferred terms below are canonical. Alternatives may appear in ordinary exp
 The vocabulary does not resolve the following matters:
 
 - The future handling policy for Unknown Waste and how a future policy could affect completion. Under the current MVP rule, Unknown Waste is not Processable Waste.
-- Battery Level sufficiency and consumption for actions other than movement and collection, including deposit.
+- Battery Level sufficiency and consumption for actions other than movement, collection, and deposit.
 - Battery degradation, health, voltage, capacity units, and time-based consumption.
-- The Mission State after insufficient Battery Level prevents an action.
+- The Mission State after insufficient Battery Level prevents an action other than deposit.
 - Transitions into or out of `charging` and behavior while charging.
-- Collection Point capacity.
+- Collection Point capacity, stored inventory, and identity.
 - Classification confidence.
 - The exact Route-planning algorithm and dynamic-Obstacle behavior.
 - What happens when a Collection Point cannot be reached, including whether the Unreachable Waste concept applies.
