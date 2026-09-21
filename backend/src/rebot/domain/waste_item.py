@@ -19,6 +19,7 @@ class WasteLifecycleState(StrEnum):
     CLASSIFIED = "classified"
     TARGETED = "targeted"
     COLLECTED = "collected"
+    DEPOSITED = "deposited"
 
 
 class WasteItem:
@@ -77,3 +78,7 @@ class WasteItem:
 
     def _collect_targeted_waste(self) -> None:
         self._lifecycle_state = WasteLifecycleState.COLLECTED
+
+    def _deposit_at(self, position: Position) -> None:
+        self._position = position
+        self._lifecycle_state = WasteLifecycleState.DEPOSITED

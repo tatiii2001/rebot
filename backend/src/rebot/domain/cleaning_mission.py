@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import cast
 
 from rebot.domain.battery_level import BatteryLevel
+from rebot.domain.compatible_collection_point import CompatibleCollectionPoint
 from rebot.domain.identity import CleaningMissionIdentity, RobotIdentity
 from rebot.domain.mission_assignment_rejection import MissionAssignmentRejection
 from rebot.domain.mission_start_rejection import MissionStartRejection
 from rebot.domain.position import Position
 from rebot.domain.required_incident import RequiredIncident
 from rebot.domain.validate_supplied_route import Route
-from rebot.domain.waste_item import WasteItem
+from rebot.domain.waste_item import WasteItem, WasteLifecycleState
 
 
 class MissionState(StrEnum):
@@ -99,6 +101,9 @@ class Robot(_StartCleaningMissionParticipant):
     def _carry_collected_waste_item(self, waste_item: WasteItem) -> None:
         self._carried_waste_item = waste_item
 
+    def _remove_carried_waste_item(self) -> None:
+        self._carried_waste_item = None
+
     def follow_validated_route(self, route: Route) -> RequiredIncident | None:
         if type(route) is not Route:
             raise TypeError("Route-following Route must be a Route")
@@ -149,6 +154,62 @@ class _CleaningMission(CleaningMission):
         self._identity = identity
         self._assigned_robot_identity = assigned_robot_identity
         self._state = MissionState.PENDING
+
+
+class _DepositRobot:
+    def _remove_carried_waste_item(self) -> None:
+        raise NotImplementedError
+
+    @staticmethod
+    def apply(robot: _DepositRobot) -> None:
+        robot._remove_carried_waste_item()
+
+
+class _DepositWasteItem:
+    def _deposit_at(self, position: Position) -> None:
+        raise NotImplementedError
+
+    @staticmethod
+    def apply(waste_item: _DepositWasteItem, position: Position) -> None:
+        waste_item._deposit_at(position)
+
+
+def deposit_collected_waste(
+    mission: CleaningMission, robot: Robot, collection_point: CompatibleCollectionPoint
+) -> RequiredIncident | None:
+    if type(mission) is not _CleaningMission:
+        raise TypeError("Deposit Cleaning Mission must be a CleaningMission")
+    if type(robot) is not Robot:
+        raise TypeError("Deposit Robot must be a Robot")
+    if type(collection_point) is not CompatibleCollectionPoint:
+        raise TypeError("Deposit Collection Point must be a CompatibleCollectionPoint")
+
+    robot_position = robot.position
+    if type(robot_position) is not Position:
+        raise TypeError("Deposit Robot Position must be a Position")
+
+    carried_waste_item = robot.carried_waste_item
+    preconditions = (
+        mission.state is MissionState.RUNNING,
+        robot.operational_state is RobotOperationalState.EXECUTING_MISSION,
+        mission.assigned_robot_identity is robot.identity,
+        robot.current_active_mission_identity is mission.identity,
+        type(carried_waste_item) is WasteItem,
+        carried_waste_item is not None
+        and carried_waste_item.lifecycle_state is WasteLifecycleState.COLLECTED,
+        robot_position == collection_point.position,
+        carried_waste_item is not None
+        and carried_waste_item.category is not None
+        and collection_point.accepts(carried_waste_item.category),
+    )
+    if not all(preconditions):
+        return None
+    if robot.battery_level.percentage == 0:
+        return RequiredIncident()
+
+    _DepositWasteItem.apply(cast(_DepositWasteItem, carried_waste_item), collection_point.position)
+    _DepositRobot.apply(cast(_DepositRobot, robot))
+    return None
 
 
 def start_cleaning_mission(mission: CleaningMission, robot: Robot) -> MissionStartRejection | None:
